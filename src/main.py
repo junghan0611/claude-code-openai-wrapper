@@ -4,6 +4,7 @@ import asyncio
 import logging
 import secrets
 import string
+import time
 from typing import Optional, AsyncGenerator, Dict, Any
 from contextlib import asynccontextmanager
 
@@ -58,6 +59,9 @@ VERBOSE = os.getenv("VERBOSE", "false").lower() in ("true", "1", "yes", "on")
 log_level = logging.DEBUG if (DEBUG_MODE or VERBOSE) else logging.INFO
 logging.basicConfig(level=log_level, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
+
+# Suppress noisy SDK internal logs
+logging.getLogger("claude_agent_sdk._internal.transport.subprocess_cli").setLevel(logging.WARNING)
 
 # Global variable to store runtime-generated API key
 runtime_api_key = None
@@ -395,6 +399,11 @@ async def generate_streaming_response(
         role_sent = False  # Track if we've sent the initial role chunk
         content_sent = False  # Track if we've sent any content
 
+        # Log request start
+        prompt_preview = prompt[:50].replace('\n', ' ') + '...' if len(prompt) > 50 else prompt.replace('\n', ' ')
+        logger.info(f"\n{'='*60}\n🔄 Request started: {request.model} | \"{prompt_preview}\"")
+        start_time = time.time()
+
         async for chunk in claude_cli.run_completion(
             prompt=prompt,
             system_prompt=system_prompt,
@@ -408,6 +417,11 @@ async def generate_streaming_response(
 
             # Check message type
             chunk_type = chunk.get("type")
+
+            # Log tool usage
+            if chunk_type == "tool_use":
+                tool_name = chunk.get("name", "unknown")
+                logger.info(f"  🔧 Tool: {tool_name}")
 
             # Handle tool_result messages (tool execution output)
             if chunk_type == "tool_result":
@@ -591,6 +605,10 @@ async def generate_streaming_response(
             logger.debug(f"Estimated usage: {usage_data}")
 
         # Send final chunk with finish reason and optionally usage data
+        # Log completion
+        elapsed = time.time() - start_time
+        logger.info(f"✅ Request completed: {elapsed:.1f}s\n{'='*60}")
+
         final_chunk = ChatCompletionStreamResponse(
             id=request_id,
             model=request.model,
@@ -701,6 +719,11 @@ async def chat_completions(
                 claude_options["disallowed_tools"] = DEFAULT_DISALLOWED_TOOLS
                 logger.info(f"Tools enabled: {DEFAULT_ALLOWED_TOOLS}")
 
+            # Log request start
+            prompt_preview = prompt[:50].replace('\n', ' ') + '...' if len(prompt) > 50 else prompt.replace('\n', ' ')
+            logger.info(f"\n{'='*60}\n🔄 Request started: {request_body.model} | \"{prompt_preview}\"")
+            start_time = time.time()
+
             # Collect all chunks
             chunks = []
             async for chunk in claude_cli.run_completion(
@@ -712,7 +735,16 @@ async def chat_completions(
                 disallowed_tools=claude_options.get("disallowed_tools"),
                 stream=False,
             ):
+                # Log tool usage
+                chunk_type = chunk.get("type")
+                if chunk_type == "tool_use":
+                    tool_name = chunk.get("name", "unknown")
+                    logger.info(f"  🔧 Tool: {tool_name}")
                 chunks.append(chunk)
+
+            # Log completion
+            elapsed = time.time() - start_time
+            logger.info(f"✅ Request completed: {elapsed:.1f}s\n{'='*60}")
 
             # Extract assistant message
             raw_assistant_content = claude_cli.parse_claude_message(chunks)

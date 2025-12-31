@@ -9,6 +9,10 @@ RELOAD=""
 DOCKER_CONTAINER="claude-wrapper-container"
 # Default workspace: ~/org (same as Docker config)
 export CLAUDE_CWD="${CLAUDE_CWD:-$HOME/org}"
+# Performance settings
+export MAX_TIMEOUT="${MAX_TIMEOUT:-300000}"  # 5분
+export DEFAULT_MODEL="${DEFAULT_MODEL:-claude-sonnet-4-5-20250929}"
+export RATE_LIMIT_ENABLED="${RATE_LIMIT_ENABLED:-false}"
 
 # Stop Docker container if running (from docker-based run.sh)
 stop_docker_if_running() {
@@ -45,8 +49,16 @@ while [[ $# -gt 0 ]]; do
             echo "  --cwd, -c PATH   Set Claude working directory (default: ~/org)"
             echo "  --help, -h       Show this help"
             echo ""
-            echo "Environment:"
-            echo "  CLAUDE_CWD       Working directory for Claude (default: ~/org)"
+            echo "Environment Variables:"
+            echo "  CLAUDE_CWD          Working directory for Claude (default: ~/org)"
+            echo "  MAX_TIMEOUT         Request timeout ms (default: 300000 = 5분)"
+            echo "  DEFAULT_MODEL       Default model (default: claude-sonnet-4-5-20250929)"
+            echo "  RATE_LIMIT_ENABLED  Rate limiting (default: false)"
+            echo ""
+            echo "Examples:"
+            echo "  ./run.sh --reload                    # 개발 모드"
+            echo "  MAX_TIMEOUT=600000 ./run.sh          # 10분 타임아웃"
+            echo "  DEFAULT_MODEL=claude-haiku-4-5-20251001 ./run.sh  # 빠른 모델"
             exit 0
             ;;
         *)
@@ -80,6 +92,7 @@ stop_docker_if_running
 echo "🚀 Starting Claude Code OpenAI Wrapper"
 echo "   URL: http://localhost:$PORT"
 echo "   CWD: $CLAUDE_CWD"
+echo "   Timeout: ${MAX_TIMEOUT}ms | Model: $DEFAULT_MODEL"
 echo "   Press Ctrl+C to stop"
 echo ""
 
