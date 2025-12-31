@@ -17,6 +17,9 @@ build/
 .conda/
 .venv/
 
+# Nix/direnv
+.direnv/
+
 # Environment variables
 .env
 .env.local
