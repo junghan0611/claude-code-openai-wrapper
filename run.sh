@@ -1,12 +1,14 @@
 #!/usr/bin/env bash
 # Claude Code OpenAI Wrapper - Local Development Server
-# Usage: ./run.sh [--reload] [--port PORT]
+# Usage: ./run.sh [--reload] [--port PORT] [--cwd PATH]
 
 set -e
 
 PORT="${PORT:-8000}"
 RELOAD=""
 DOCKER_CONTAINER="claude-wrapper-container"
+# Default workspace: ~/org (same as Docker config)
+export CLAUDE_CWD="${CLAUDE_CWD:-$HOME/org}"
 
 # Stop Docker container if running (from docker-based run.sh)
 stop_docker_if_running() {
@@ -30,13 +32,21 @@ while [[ $# -gt 0 ]]; do
             PORT="$2"
             shift 2
             ;;
+        --cwd|-c)
+            export CLAUDE_CWD="$2"
+            shift 2
+            ;;
         --help|-h)
             echo "Usage: $(basename "$0") [OPTIONS]"
             echo ""
             echo "Options:"
             echo "  --reload, -r     Enable auto-reload on file changes"
             echo "  --port, -p PORT  Set server port (default: 8000)"
+            echo "  --cwd, -c PATH   Set Claude working directory (default: ~/org)"
             echo "  --help, -h       Show this help"
+            echo ""
+            echo "Environment:"
+            echo "  CLAUDE_CWD       Working directory for Claude (default: ~/org)"
             exit 0
             ;;
         *)
@@ -67,7 +77,9 @@ fi
 # Stop Docker container if running
 stop_docker_if_running
 
-echo "🚀 Starting Claude Code OpenAI Wrapper on http://localhost:$PORT"
+echo "🚀 Starting Claude Code OpenAI Wrapper"
+echo "   URL: http://localhost:$PORT"
+echo "   CWD: $CLAUDE_CWD"
 echo "   Press Ctrl+C to stop"
 echo ""
 
