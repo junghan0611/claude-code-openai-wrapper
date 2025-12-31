@@ -45,7 +45,7 @@ from src.rate_limiter import (
     rate_limit_exceeded_handler,
     rate_limit_endpoint,
 )
-from src.constants import CLAUDE_MODELS, CLAUDE_TOOLS
+from src.constants import CLAUDE_MODELS, CLAUDE_TOOLS, DEFAULT_ALLOWED_TOOLS, DEFAULT_DISALLOWED_TOOLS
 
 # Load environment variables
 load_dotenv()
@@ -385,7 +385,10 @@ async def generate_streaming_response(
             claude_options["max_turns"] = 1  # Single turn for Q&A
             logger.info("Tools disabled (default behavior for OpenAI compatibility)")
         else:
-            logger.info("Tools enabled by user request")
+            # Use default allowed/disallowed tools
+            claude_options["allowed_tools"] = DEFAULT_ALLOWED_TOOLS
+            claude_options["disallowed_tools"] = DEFAULT_DISALLOWED_TOOLS
+            logger.info(f"Tools enabled: {DEFAULT_ALLOWED_TOOLS}")
 
         # Run Claude Code
         chunks_buffer = []
@@ -403,10 +406,61 @@ async def generate_streaming_response(
         ):
             chunks_buffer.append(chunk)
 
+            # Check message type
+            chunk_type = chunk.get("type")
+
+            # Handle tool_result messages (tool execution output)
+            if chunk_type == "tool_result":
+                tool_content = chunk.get("content")
+                if tool_content:
+                    # Send role chunk if needed
+                    if not role_sent:
+                        initial_chunk = ChatCompletionStreamResponse(
+                            id=request_id,
+                            model=request.model,
+                            choices=[
+                                StreamChoice(
+                                    index=0,
+                                    delta={"role": "assistant", "content": ""},
+                                    finish_reason=None,
+                                )
+                            ],
+                        )
+                        yield f"data: {initial_chunk.model_dump_json()}\n\n"
+                        role_sent = True
+
+                    # Format tool result
+                    if isinstance(tool_content, str):
+                        result_text = f"\n```\n{tool_content}\n```\n"
+                    elif isinstance(tool_content, list):
+                        result_parts = []
+                        for block in tool_content:
+                            if isinstance(block, dict) and block.get("type") == "text":
+                                result_parts.append(block.get("text", ""))
+                        result_text = f"\n```\n{''.join(result_parts)}\n```\n"
+                    else:
+                        result_text = None
+
+                    if result_text:
+                        stream_chunk = ChatCompletionStreamResponse(
+                            id=request_id,
+                            model=request.model,
+                            choices=[
+                                StreamChoice(
+                                    index=0,
+                                    delta={"content": result_text},
+                                    finish_reason=None,
+                                )
+                            ],
+                        )
+                        yield f"data: {stream_chunk.model_dump_json()}\n\n"
+                        content_sent = True
+                continue
+
             # Check if we have an assistant message
             # Handle both old format (type/message structure) and new format (direct content)
             content = None
-            if chunk.get("type") == "assistant" and "message" in chunk:
+            if chunk_type == "assistant" and "message" in chunk:
                 # Old format: {"type": "assistant", "message": {"content": [...]}}
                 message = chunk["message"]
                 if isinstance(message, dict) and "content" in message:
@@ -642,7 +696,10 @@ async def chat_completions(
                 claude_options["max_turns"] = 1  # Single turn for Q&A
                 logger.info("Tools disabled (default behavior for OpenAI compatibility)")
             else:
-                logger.info("Tools enabled by user request")
+                # Use default allowed/disallowed tools
+                claude_options["allowed_tools"] = DEFAULT_ALLOWED_TOOLS
+                claude_options["disallowed_tools"] = DEFAULT_DISALLOWED_TOOLS
+                logger.info(f"Tools enabled: {DEFAULT_ALLOWED_TOOLS}")
 
             # Collect all chunks
             chunks = []

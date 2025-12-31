@@ -187,8 +187,25 @@ class ClaudeCodeCLI:
             }
 
     def parse_claude_message(self, messages: List[Dict[str, Any]]) -> Optional[str]:
-        """Extract the assistant message from Claude Agent SDK messages."""
+        """Extract all messages from Claude Agent SDK including tool results."""
+        all_parts = []
+
         for message in messages:
+            msg_type = message.get("type")
+
+            # Handle tool_result messages (tool execution output)
+            if msg_type == "tool_result":
+                # Extract tool result content
+                content = message.get("content")
+                if content:
+                    if isinstance(content, str):
+                        all_parts.append(f"\n```\n{content}\n```\n")
+                    elif isinstance(content, list):
+                        for block in content:
+                            if isinstance(block, dict) and block.get("type") == "text":
+                                all_parts.append(f"\n```\n{block.get('text', '')}\n```\n")
+                continue
+
             # Look for AssistantMessage type (new SDK format)
             if "content" in message and isinstance(message["content"], list):
                 text_parts = []
@@ -202,10 +219,10 @@ class ClaudeCodeCLI:
                         text_parts.append(block)
 
                 if text_parts:
-                    return "\n".join(text_parts)
+                    all_parts.append("\n".join(text_parts))
 
             # Fallback: look for old format
-            elif message.get("type") == "assistant" and "message" in message:
+            elif msg_type == "assistant" and "message" in message:
                 sdk_message = message["message"]
                 if isinstance(sdk_message, dict) and "content" in sdk_message:
                     content = sdk_message["content"]
@@ -215,11 +232,12 @@ class ClaudeCodeCLI:
                         for block in content:
                             if isinstance(block, dict) and block.get("type") == "text":
                                 text_parts.append(block.get("text", ""))
-                        return "\n".join(text_parts) if text_parts else None
+                        if text_parts:
+                            all_parts.append("\n".join(text_parts))
                     elif isinstance(content, str):
-                        return content
+                        all_parts.append(content)
 
-        return None
+        return "\n".join(all_parts) if all_parts else None
 
     def extract_metadata(self, messages: List[Dict[str, Any]]) -> Dict[str, Any]:
         """Extract metadata like costs, tokens, and session info from SDK messages."""

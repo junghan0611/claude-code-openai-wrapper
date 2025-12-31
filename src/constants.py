@@ -35,13 +35,13 @@ DEFAULT_ALLOWED_TOOLS = [
     "Bash",
     "Write",
     "Edit",
+    "WebSearch",  # Web search
+    "WebFetch",   # Fetch web content
 ]
 
 # Tools to disallow by default (potentially dangerous or slow)
 DEFAULT_DISALLOWED_TOOLS = [
-    "Task",  # Can spawn sub-agents
-    "WebFetch",  # External network access
-    "WebSearch",  # External network access
+    "Task",  # Can spawn sub-agents (resource intensive)
 ]
 
 # Claude Models
