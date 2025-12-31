@@ -35,42 +35,22 @@ bd ready                          # Find available work
 bd show <id>                      # View issue details
 bd update <id> --status in_progress  # Claim work
 bd close <id>                     # Complete work
-
-# Session end - sync both branches
-git push origin ko                # 1. Push code
-bd sync --no-pull                 # 2. Export issues
-git push origin beads-sync        # 3. Push issues
 ```
 
 ## Landing the Plane (Session Completion)
 
-**When ending a work session**, you MUST complete ALL steps below.
-
 ```bash
-# 1. Push code (ko branch)
+# 1. Commit all changes (code + issues)
+git add -A
+git commit -m "your message"
+
+# 2. Push
 git pull --rebase origin ko
 git push origin ko
 
-# 2. Sync issues (beads-sync branch)
-bd sync --no-pull
-git push origin beads-sync
-
 # 3. Verify
-bd list                           # Issues synced
-git status                        # Clean state
+bd list && git status
 ```
 
-**CRITICAL RULES:**
-- Use `bd sync --no-pull` (full `bd sync` has sparse-checkout issues)
-- Work is NOT complete until BOTH branches are pushed
-
-**TROUBLESHOOTING:**
-
-If `bd sync` fails with "git status failed in worktree":
-```bash
-rm -rf .git/beads-worktrees .git/worktrees
-git worktree prune
-bd sync --no-pull
-git push origin beads-sync
-```
+**Note:** .beads/ 폴더가 ko 브랜치에 직접 포함됩니다. 별도 sync 불필요.
 
