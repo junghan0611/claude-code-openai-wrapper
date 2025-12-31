@@ -6,6 +6,18 @@ set -e
 
 PORT="${PORT:-8000}"
 RELOAD=""
+DOCKER_CONTAINER="claude-wrapper-container"
+
+# Stop Docker container if running (from docker-based run.sh)
+stop_docker_if_running() {
+    if command -v docker &> /dev/null; then
+        if docker ps --format '{{.Names}}' 2>/dev/null | grep -q "^${DOCKER_CONTAINER}$"; then
+            echo "🐳 Docker 컨테이너 감지 → 중지 중..."
+            docker rm -f "$DOCKER_CONTAINER" >/dev/null 2>&1
+            echo "   완료. 로컬 서버로 전환합니다."
+        fi
+    fi
+}
 
 # Parse arguments
 while [[ $# -gt 0 ]]; do
@@ -51,6 +63,9 @@ if [ ! -d ".venv" ]; then
     echo "📦 Installing dependencies..."
     poetry install --no-interaction
 fi
+
+# Stop Docker container if running
+stop_docker_if_running
 
 echo "🚀 Starting Claude Code OpenAI Wrapper on http://localhost:$PORT"
 echo "   Press Ctrl+C to stop"
