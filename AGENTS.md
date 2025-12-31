@@ -72,3 +72,18 @@ bd sync                           # Sync issues (auto push beads-sync)
 - `bd sync` handles beads-sync automatically, but verify with `git status`
 - If `bd sync` fails with pull error, use `bd sync --no-pull` first, then `git push origin beads-sync`
 
+**TROUBLESHOOTING:**
+
+If `bd sync` fails with "git status failed in worktree: exit status 128":
+```bash
+# 1. Remove corrupted worktree
+rm -rf .git/beads-worktrees
+git worktree prune
+
+# 2. Recreate with force flag
+git worktree add -f .git/beads-worktrees/beads-sync beads-sync
+
+# 3. Retry sync
+bd sync
+```
+
