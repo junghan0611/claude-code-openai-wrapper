@@ -189,6 +189,18 @@ async def lifespan(app: FastAPI):
     # Start session cleanup task
     session_manager.start_cleanup_task()
 
+    # Print startup banner
+    independent_mode = os.environ.get("CLAUDE_INDEPENDENT_MODE", "").lower() in ("1", "true", "yes")
+    mode_str = "⚡ Independent (MCP off)" if independent_mode else "🔗 Full (MCP on)"
+    logger.info("")
+    logger.info("=" * 60)
+    logger.info("🚀 Claude Code OpenAI Wrapper READY")
+    logger.info(f"   Mode: {mode_str}")
+    logger.info(f"   CWD:  {os.environ.get('CLAUDE_CWD', 'Not set')}")
+    logger.info(f"   Model: {os.environ.get('DEFAULT_MODEL', 'claude-sonnet-4-5-20250929')}")
+    logger.info("=" * 60)
+    logger.info("")
+
     yield
 
     # Cleanup on shutdown
