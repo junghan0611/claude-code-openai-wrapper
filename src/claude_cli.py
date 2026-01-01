@@ -155,8 +155,18 @@ class ClaudeCodeCLI:
                 elif session_id:
                     options.resume = session_id
 
+                # Time tracking
+                import time
+                sdk_start = time.time()
+                first_message_time = None
+
                 # Run the query and yield messages
                 async for message in query(prompt=prompt, options=options):
+                    # Track first message time (init)
+                    if first_message_time is None:
+                        first_message_time = time.time()
+                        init_elapsed = first_message_time - sdk_start
+                        logger.info(f"  ⏱️ SDK init: {init_elapsed:.2f}s (independent={independent_mode})")
                     # Debug logging
                     logger.debug(f"Raw SDK message type: {type(message)}")
                     logger.debug(f"Raw SDK message: {message}")
@@ -177,8 +187,23 @@ class ClaudeCodeCLI:
                                     pass
 
                         logger.debug(f"Converted message dict: {message_dict}")
+
+                        # Log result message timing
+                        if message_dict.get("type") == "result":
+                            duration_ms = message_dict.get("duration_ms", 0)
+                            duration_api_ms = message_dict.get("duration_api_ms", 0)
+                            sdk_elapsed = time.time() - sdk_start
+                            logger.info(f"  ⏱️ SDK result: total={sdk_elapsed:.2f}s, cli={duration_ms}ms, api={duration_api_ms}ms")
+
                         yield message_dict
                     else:
+                        # Log result message timing for dict messages
+                        if isinstance(message, dict) and message.get("type") == "result":
+                            duration_ms = message.get("duration_ms", 0)
+                            duration_api_ms = message.get("duration_api_ms", 0)
+                            sdk_elapsed = time.time() - sdk_start
+                            logger.info(f"  ⏱️ SDK result: total={sdk_elapsed:.2f}s, cli={duration_ms}ms, api={duration_api_ms}ms")
+
                         yield message
 
             finally:

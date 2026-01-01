@@ -96,6 +96,11 @@ echo "🚀 Starting Claude Code OpenAI Wrapper"
 echo "   URL: http://localhost:$PORT"
 echo "   CWD: $CLAUDE_CWD"
 echo "   Timeout: ${MAX_TIMEOUT}ms | Model: $DEFAULT_MODEL"
+if [ "$CLAUDE_INDEPENDENT_MODE" = "true" ] || [ "$CLAUDE_INDEPENDENT_MODE" = "1" ]; then
+    echo "   ⚡ Independent Mode: ON (MCP/plugins disabled, ~31% faster)"
+else
+    echo "   🔗 Independent Mode: OFF (MCP/plugins enabled)"
+fi
 echo "   Press Ctrl+C to stop"
 echo ""
 
