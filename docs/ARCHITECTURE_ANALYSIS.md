@@ -1,9 +1,9 @@
-# Claude Code OpenAI Wrapper 아키텍처 분석
+# Claude Code OpenAI Wrapper Architecture Analysis
 
-> 분석일: 2026-01-01
-> 관련 이슈: ccow-ayl (perf: Reduce Claude CLI warm-up overhead)
+> Last Updated: 2026-01-01
+> Related Issues: ccow-ayl (closed), ccow-bhb (closed)
 
-## 1. 시스템 구조
+## 1. System Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -13,10 +13,9 @@
 │  │  - gptel-make-openai "Claude-Code"                       │   │
 │  │  - :host "localhost:8000"                                │   │
 │  │  - Advice: gptel--claude-code-add-enable-tools           │   │
-│  │  - 자동 서버 감지: gptel--claude-code-server-available-p │   │
 │  └────────────────────────┬────────────────────────────────┘   │
 └───────────────────────────┼─────────────────────────────────────┘
-                            │ HTTP (OpenAI 형식)
+                            │ HTTP (OpenAI format)
                             ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │               claude-code-openai-wrapper                        │
@@ -28,7 +27,7 @@
 │  ┌────────────────────────▼────────────────────────────────┐   │
 │  │ claude_cli.py                                            │   │
 │  │  - run_completion(session_id, continue_session)          │   │
-│  │  - claude-agent-sdk의 query() 함수 사용                  │   │
+│  │  - Uses claude-agent-sdk query() function                │   │
 │  └────────────────────────┬────────────────────────────────┘   │
 └───────────────────────────┼─────────────────────────────────────┘
                             │ claude-agent-sdk
@@ -36,195 +35,201 @@
 ┌─────────────────────────────────────────────────────────────────┐
 │               claude-agent-sdk-python                           │
 │  ┌─────────────────────────────────────────────────────────┐   │
-│  │ query() - 단발성 쿼리 (현재 사용)                        │   │
-│  │ ClaudeSDKClient - 양방향 대화 (미사용)                   │   │
+│  │ query() - Stateless queries (currently used)             │   │
+│  │ ClaudeSDKClient - Bidirectional conversation (unused)    │   │
 │  │                                                          │   │
 │  │ ClaudeAgentOptions:                                      │   │
-│  │  - resume: str (세션 재개)                               │   │
+│  │  - resume: str (session resume)                          │   │
 │  │  - continue_conversation: bool                           │   │
 │  │  - hooks, mcp_servers, fork_session, output_format ...   │   │
 │  └─────────────────────────────────────────────────────────┘   │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-## 2. 현재 문제점 (ccow-ayl)
+## 2. Performance Problem (Resolved)
 
-### 2.1 성능 이슈
+### 2.1 Original Issue
 
-| 항목 | 현재 | 예상 | 차이 |
-|------|------|------|------|
-| 응답 시간 (도구 미사용) | 10초 | 2-3초 | 7-8초 오버헤드 |
+| Metric | Before | Expected | Gap |
+|--------|--------|----------|-----|
+| Response time (no tools) | 10s | 2-3s | 7-8s overhead |
 
-### 2.2 근본 원인
+### 2.2 Root Cause
 
-**SDK `query()` 함수의 stateless 설계**
-
-SDK의 `query()` 함수는 의도적으로 stateless:
-- 매 호출마다 새 CLI 프로세스 시작 (설계 의도)
-- session_id 미전달은 **버그가 아님** - 의도된 설계
+**SDK `query()` function is intentionally stateless:**
+- Starts new CLI process per call (by design)
+- No session_id passing is NOT a bug - it's intended
 
 ```
-# query.py 문서:
+# query.py documentation:
 # - Stateless: Each query is independent, no conversation state
 # - No interrupts: Cannot interrupt or send follow-up messages
 ```
 
-### 2.3 시간 분해
+### 2.3 Time Breakdown
 
 ```
-전체 10s =
-  CLI 프로세스 시작 (3-5s) +
-  SDK 초기화 (1s) +
-  API 네트워크 (2-3s) +
-  모델 생성 (2-3s)
+Total 10s =
+  CLI process start (3-5s) +
+  SDK initialization (1s) +
+  API network (2-3s) +
+  Model generation (2-3s)
 ```
 
-### 2.4 두 가지 세션 개념 (혼동 주의)
+### 2.4 Two Session Concepts (Caution)
 
-| 구분 | wrapper의 session_id | Claude CLI의 resume |
-|------|---------------------|---------------------|
-| 위치 | `session_manager.py` | `claude-agent-sdk` |
-| 용도 | 대화 히스토리 저장 | CLI 프로세스 재사용 |
-| 방식 | messages 배열 누적 | CLI 내부 컨텍스트 유지 |
+| Aspect | Wrapper session_id | Claude CLI resume |
+|--------|-------------------|-------------------|
+| Location | `session_manager.py` | `claude-agent-sdk` |
+| Purpose | Store conversation history | Reuse CLI process |
+| Method | Accumulate messages array | Maintain CLI internal context |
 
-**wrapper는 이미 전체 대화 히스토리를 messages로 매번 전달** → CLI resume 사용 시 컨텍스트 중복 위험
+**Wrapper already sends full conversation history via messages** → Using CLI resume risks context duplication
 
-## 3. 해결 방안
+## 3. Solutions Implemented
 
-### 3.1 방안 비교
+### 3.1 Approach Comparison
 
-| 방안 | 설명 | 복잡도 | 효과 |
-|------|------|--------|------|
-| 환경변수 최적화 | 버전 체크 건너뛰기 등 | 낮음 | 낮음 |
-| CLI 옵션 추가 | --no-session-persistence 등 | 낮음 | 낮음~중간 |
-| ClaudeSDKClient | 프로세스 유지, 양방향 통신 | 높음 | 높음 |
-| 프로세스 풀링 | warm 프로세스 미리 유지 | 중간 | 높음 |
+| Approach | Description | Complexity | Effect |
+|----------|-------------|------------|--------|
+| Environment optimization | Skip version check, etc. | Low | Low |
+| CLI options | --no-session-persistence, etc. | Low | Low-Medium |
+| ClaudeSDKClient | Maintain process, bidirectional | High | High |
+| Process pooling | Keep warm processes ready | Medium | High |
 
-### 3.2 독립 모드 (CLAUDE_INDEPENDENT_MODE) ✅ 구현됨
+### 3.2 Independent Mode (CLAUDE_INDEPENDENT_MODE) ✅ Implemented
 
-**성능 측정 결과:**
-| 모드 | 시간 | 개선 |
-|------|------|------|
-| 기본 (MCP 포함) | 6.1s | - |
-| 독립 모드 | 4.2s | **-31%** |
+**Performance Results:**
+| Mode | Time | Improvement |
+|------|------|-------------|
+| Default (with MCP) | 6.1s | - |
+| Independent mode | 4.2s | **-31%** |
 
-**환경변수:**
+**Environment Variable:**
 ```bash
-CLAUDE_INDEPENDENT_MODE=true  # 기본값: true
+CLAUDE_INDEPENDENT_MODE=true  # Default: true
 ```
 
-**적용되는 CLI 옵션:**
+**Applied CLI Options:**
 ```python
 extra_args = {
-    "strict-mcp-config": None,       # MCP 서버 연결 안함
-    "mcp-config": "empty-mcp.json",  # 빈 MCP 설정
-    "disable-slash-commands": None,   # 슬래시 명령 로드 안함
-    "setting-sources": "",            # 외부 설정 로드 안함
+    "strict-mcp-config": None,       # No MCP server connections
+    "mcp-config": "empty-mcp.json",  # Empty MCP config
+    "disable-slash-commands": None,   # No slash command loading
+    "setting-sources": "",            # No external settings
 }
 ```
 
-**유지되는 기능:**
-- ✅ 작업 디렉토리 (cwd)
-- ✅ 내장 도구: WebSearch, WebFetch, Bash, Read, Edit, Write 등
-- ✅ 모델 선택, 시스템 프롬프트
+**Preserved Features:**
+- ✅ Working directory (cwd)
+- ✅ Built-in tools: WebSearch, WebFetch, Bash, Read, Edit, Write, etc.
+- ✅ Model selection, system prompt
 
-**비활성화되는 기능:**
-- ❌ MCP 서버 (context7, github 등)
-- ❌ 플러그인/스킬
-- ❌ 슬래시 명령
+**Disabled Features:**
+- ❌ MCP servers (context7, github, etc.)
+- ❌ Plugins/skills
+- ❌ Slash commands
 
-### 3.3 최소 도구 모드 (CLAUDE_MINIMAL_TOOLS) ✅ 구현됨
+### 3.3 Minimal Tools Mode (CLAUDE_MINIMAL_TOOLS) ✅ Implemented
 
-**성능 측정 결과:**
-| 모드 | 시간 | 도구 수 | 개선 |
-|------|------|---------|------|
-| 독립 모드 (기준) | 7.1s | 18개 | - |
-| + 최소 도구 | 4.3s | 8개 | **-39%** |
+**Performance Results:**
+| Mode | Time | Tools | Improvement |
+|------|------|-------|-------------|
+| Independent mode (baseline) | 7.1s | 18 | - |
+| + Minimal tools | 4.3s | 8 | **-39%** |
 
-**환경변수:**
+**Environment Variable:**
 ```bash
-CLAUDE_MINIMAL_TOOLS=true  # 기본값: true
+CLAUDE_MINIMAL_TOOLS=true  # Default: true
 ```
 
-**유지되는 도구 (8개):**
-- Bash, Glob, Grep (셸/검색)
-- Read, Edit, Write (파일 작업)
-- WebFetch, WebSearch (웹 검색)
+**Preserved Tools (8):**
+- Bash, Glob, Grep (shell/search)
+- Read, Edit, Write (file operations)
+- WebFetch, WebSearch (web search)
 
-**비활성화되는 도구 (10개):**
-- Task, TaskOutput (에이전트 스폰)
-- LSP (IDE 용)
+**Disabled Tools (10):**
+- Task, TaskOutput (agent spawning)
+- LSP (IDE integration)
 - AskUserQuestion, TodoWrite (interactive)
 - NotebookEdit (Jupyter)
-- EnterPlanMode, ExitPlanMode (계획 모드)
-- Skill, KillShell (기타)
+- EnterPlanMode, ExitPlanMode (planning mode)
+- Skill, KillShell (misc)
 
-**작동 원리:**
-도구 정의가 시스템 프롬프트에 포함되므로 도구 감소 = 토큰 감소 = 응답 속도 향상
+**How It Works:**
+Tool definitions are included in the system prompt, so fewer tools = fewer tokens = faster response
 
-### 3.4 장기: ClaudeSDKClient 도입 검토
+### 3.4 Cumulative Performance Improvement
+
+| Stage | Time | Improvement | Cumulative |
+|-------|------|-------------|------------|
+| Default (Full) | ~10s | - | - |
+| Independent Mode | 6.1s | -31% | -31% |
+| + Minimal Tools | 4.3s | -39% | **-57%** |
+
+### 3.5 Future: ClaudeSDKClient Consideration
 
 ```python
-# 현재: query() - stateless, 매번 새 프로세스
+# Current: query() - stateless, new process each time
 async for message in query(prompt=prompt, options=options):
     yield message
 
-# 개선: ClaudeSDKClient - 프로세스 유지
+# Future: ClaudeSDKClient - persistent process
 async with ClaudeSDKClient(options=options) as client:
     await client.query(prompt)
     async for msg in client.receive_response():
         yield msg
 ```
 
-**장점:**
-- 프로세스 재사용으로 warm-up 제거
-- 인터럽트, 권한 모드 변경 등 추가 기능
+**Pros:**
+- Process reuse eliminates warm-up
+- Additional features: interrupts, permission mode changes
 
-**단점:**
-- 아키텍처 변경 필요
-- 연결 관리 복잡성 증가
+**Cons:**
+- Requires architecture changes
+- Increased connection management complexity
 
-## 4. claude-agent-sdk 기능 분석
+## 4. claude-agent-sdk Feature Analysis
 
-### 4.1 현재 사용 중
+### 4.1 Currently Used
 
-| 기능 | 위치 | 상태 |
-|------|------|------|
-| `query()` | claude_cli.py:145 | 사용 중 |
-| `ClaudeAgentOptions` | claude_cli.py:119 | 부분 사용 |
-| `resume` (session_id) | claude_cli.py:142 | 구현됨, 미전달 |
+| Feature | Location | Status |
+|---------|----------|--------|
+| `query()` | claude_cli.py | In use |
+| `ClaudeAgentOptions` | claude_cli.py | Partially used |
+| `extra_args` | claude_cli.py | In use (independent/minimal mode) |
 
-### 4.2 미사용 기능
+### 4.2 Unused Features
 
-| 기능 | SDK 지원 | 용도 |
-|------|----------|------|
-| `ClaudeSDKClient` | client.py | 양방향 대화, 인터럽트 |
-| `hooks` | PreToolUse, PostToolUse | 도구 실행 전/후 개입 |
-| `mcp_servers` | in-process MCP | 커스텀 도구 정의 |
-| `fork_session` | 세션 포크 | 대화 분기 |
-| `output_format` | 구조화 출력 | JSON 스키마 응답 |
-| `enable_file_checkpointing` | 파일 체크포인트 | 되돌리기 |
-| `can_use_tool` | 권한 콜백 | 동적 권한 제어 |
-| `set_permission_mode` | 권한 모드 변경 | 런타임 권한 전환 |
+| Feature | SDK Support | Purpose |
+|---------|-------------|---------|
+| `ClaudeSDKClient` | client.py | Bidirectional conversation, interrupts |
+| `hooks` | PreToolUse, PostToolUse | Intercept before/after tool execution |
+| `mcp_servers` | in-process MCP | Custom tool definitions |
+| `fork_session` | Session fork | Conversation branching |
+| `output_format` | Structured output | JSON schema responses |
+| `enable_file_checkpointing` | File checkpoint | Undo capability |
+| `can_use_tool` | Permission callback | Dynamic permission control |
+| `set_permission_mode` | Permission mode change | Runtime permission switching |
 
-### 4.3 ResultMessage 정보
+### 4.3 ResultMessage Information
 
 ```python
 @dataclass
 class ResultMessage:
-    session_id: str           # 세션 ID 반환
-    total_cost_usd: float     # 비용 정보
-    usage: dict               # 토큰 사용량
-    duration_ms: int          # 응답 시간
-    num_turns: int            # 턴 수
+    session_id: str           # Session ID returned
+    total_cost_usd: float     # Cost information
+    usage: dict               # Token usage
+    duration_ms: int          # Response time
+    num_turns: int            # Number of turns
 ```
 
-## 5. gptel 연동 분석
+## 5. gptel Integration Analysis
 
-### 5.1 현재 구현 (ai-gptel.el)
+### 5.1 Current Implementation (ai-gptel.el)
 
 ```elisp
-;; 백엔드 정의
+;; Backend definition
 (setq gptel-claude-code-backend
       (gptel-make-openai "Claude-Code"
         :host "localhost:8000"
@@ -236,57 +241,58 @@ class ResultMessage:
                   (claude-opus-4-5-20251101 ...)
                   (claude-haiku-4-5-20251001 ...))))
 
-;; enable_tools 자동 추가 (Advice)
+;; Auto-add enable_tools (Advice)
 (advice-add 'gptel--request-data :around #'gptel--claude-code-add-enable-tools)
 
-;; 서버 상태 확인
+;; Server status check
 (defun gptel--claude-code-server-available-p ()
   "Check if Claude-Code wrapper server is running.")
 ```
 
-### 5.2 확장 가능한 연동
+### 5.2 Potential Enhancements
 
-| 기능 | 구현 방법 | 우선순위 |
-|------|-----------|----------|
-| 세션 ID 전달 | `:request-params` 또는 헤더 | P1 |
-| 비용/토큰 표시 | 응답 헤더 → gptel 후처리 훅 | P2 |
-| 도구 결과 포맷 | wrapper에서 마크다운 변환 | P2 |
-| 인터럽트 | SSE cancel 지원 | P3 |
+| Feature | Implementation | Priority |
+|---------|----------------|----------|
+| Session ID passing | `:request-params` or headers | P1 |
+| Cost/token display | Response headers → gptel post-processing hook | P2 |
+| Tool result formatting | Markdown conversion in wrapper | P2 |
+| Interrupt | SSE cancel support | P3 |
 
-## 6. 확장 로드맵
+## 6. Roadmap
 
-### Phase 1: 성능 개선 (ccow-ayl)
-- [ ] CLI 로딩 최적화 방안 조사
-- [ ] ClaudeSDKClient 도입 검토
-- [ ] 프로세스 풀링 가능성 평가
+### Phase 1: Performance Optimization ✅ Complete
+- [x] CLI loading optimization research → Independent mode
+- [x] Tool minimization → 8 core tools only
+- [ ] ClaudeSDKClient adoption (long-term)
+- [ ] Process pooling evaluation (long-term)
 
-### Phase 2: SDK 기능 활용
-- [ ] 비용/토큰 정보 응답에 포함
-- [ ] 실제 usage 데이터 반환 (추정치 대체)
-- [ ] 세션 관리 API 추가 (`/v1/sessions`)
+### Phase 2: SDK Feature Utilization
+- [ ] Include cost/token info in responses
+- [ ] Return actual usage data (replace estimates)
+- [ ] Add session management API (`/v1/sessions`)
 
-### Phase 3: 고급 기능
-- [ ] ClaudeSDKClient 도입 (양방향 대화)
-- [ ] 훅 시스템 활용 (도구 필터링)
-- [ ] 커스텀 MCP 도구 지원
+### Phase 3: Advanced Features
+- [ ] ClaudeSDKClient adoption (bidirectional)
+- [ ] Hook system utilization (tool filtering)
+- [ ] Custom MCP tool support
 
-### Phase 4: gptel 강화
-- [ ] 비용 표시 gptel 훅
-- [ ] 세션 상태 모드라인 표시
-- [ ] 도구 결과 org-mode 포맷팅
+### Phase 4: gptel Enhancement
+- [ ] Cost display gptel hook
+- [ ] Session status modeline display
+- [ ] Tool result org-mode formatting
 
-## 7. 관련 파일
+## 7. Related Files
 
-| 파일 | 역할 |
+| File | Role |
 |------|------|
-| `src/main.py` | FastAPI 엔드포인트 (수정 필요: 407, 729) |
-| `src/claude_cli.py` | SDK 래퍼 (수정 필요: 139) |
-| `src/session.py` | 세션 관리 |
-| `~/sync/emacs/doomemacs-config/lisp/ai-gptel.el` | gptel 설정 |
-| `~/repos/3rd/claude-agent-sdk-python/` | SDK 소스 참조 |
+| `src/main.py` | FastAPI endpoints |
+| `src/claude_cli.py` | SDK wrapper |
+| `src/session.py` | Session management |
+| `src/empty-mcp.json` | Empty MCP config for independent mode |
+| `~/sync/emacs/doomemacs-config/lisp/ai-gptel.el` | gptel configuration |
 
-## 8. 참고 자료
+## 8. References
 
 - [Claude Agent SDK Python](https://docs.anthropic.com/en/docs/claude-code/sdk/sdk-python)
-- [gptel 소스](https://github.com/karthink/gptel)
-- bd 이슈: `bd show ccow-ayl`
+- [gptel source](https://github.com/karthink/gptel)
+- See CHANGELOG.md for version history

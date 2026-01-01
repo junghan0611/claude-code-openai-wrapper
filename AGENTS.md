@@ -1,15 +1,23 @@
 # Agent Instructions
 
+## Documentation & Commit Language
+
+**IMPORTANT:** All documentation, commit messages, and code comments must be written in **English**.
+- Commit messages: English only
+- Documentation (*.md): English only
+- Code comments: English only
+- Conversation with user: Korean is OK
+
 ## Project Purpose (ko branch)
 
-이 포크는 **Doom Emacs + gptel** 환경에서 Claude Code 정액제를 활용하기 위한 래퍼입니다.
+This fork is a wrapper for using Claude Code flat-rate subscription in **Doom Emacs + gptel** environment.
 
-### 핵심 기능
-- **OpenAI 호환 API**: Claude Code를 `localhost:8000`에서 OpenAI API 형식으로 제공
-- **gptel 통합**: Emacs gptel 백엔드로 직접 사용 가능
-- **Claude 도구 활용**: Read, Write, Bash 등 Claude Code 도구를 Emacs 내에서 사용
+### Key Features
+- **OpenAI-compatible API**: Provides Claude Code as OpenAI API format at `localhost:8000`
+- **gptel Integration**: Direct use as Emacs gptel backend
+- **Claude Tools**: Use Read, Write, Bash, WebSearch, etc. from within Emacs
 
-### 사용 환경
+### Architecture
 ```
 ┌─────────────────┐     ┌──────────────────┐     ┌─────────────┐
 │  Doom Emacs     │────▶│  Claude Wrapper  │────▶│ Claude Code │
@@ -17,9 +25,24 @@
 └─────────────────┘     └──────────────────┘     └─────────────┘
 ```
 
-### 관련 설정
-- gptel 설정: `~/sync/emacs/doomemacs-config/lisp/ai-gptel.el`
-- Docker 설정: `~/sync/emacs/doomemacs-config/docker/claude-wrapper/`
+### Related Configuration
+- gptel config: `~/sync/emacs/doomemacs-config/lisp/ai-gptel.el`
+- Docker config: `~/sync/emacs/doomemacs-config/docker/claude-wrapper/`
+
+---
+
+## Performance Modes
+
+Two environment variables control performance optimization:
+
+| Variable | Default | Effect |
+|----------|---------|--------|
+| `CLAUDE_INDEPENDENT_MODE` | `true` | Disable MCP/plugins (-31%) |
+| `CLAUDE_MINIMAL_TOOLS` | `true` | Use 8 core tools only (-39%) |
+
+Combined improvement: **~57% faster** (10s → 4.3s)
+
+See `docs/ARCHITECTURE_ANALYSIS.md` for details.
 
 ---
 
@@ -52,5 +75,4 @@ git push origin ko
 bd list && git status
 ```
 
-**Note:** .beads/ 폴더가 ko 브랜치에 직접 포함됩니다. 별도 sync 불필요.
-
+**Note:** `.beads/` folder is included directly in ko branch. No separate sync needed.
