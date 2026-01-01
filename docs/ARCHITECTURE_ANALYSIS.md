@@ -57,12 +57,16 @@
 
 ### 2.2 근본 원인
 
-**Session ID 미전달로 인한 CLI 재시작**
+**SDK `query()` 함수의 stateless 설계**
+
+SDK의 `query()` 함수는 의도적으로 stateless:
+- 매 호출마다 새 CLI 프로세스 시작 (설계 의도)
+- session_id 미전달은 **버그가 아님** - 의도된 설계
 
 ```
-main.py:353 → actual_session_id 획득
-main.py:407 → run_completion() 호출 시 session_id 파라미터 누락
-main.py:729 → 비스트리밍도 동일 문제
+# query.py 문서:
+# - Stateless: Each query is independent, no conversation state
+# - No interrupts: Cannot interrupt or send follow-up messages
 ```
 
 ### 2.3 시간 분해
@@ -75,37 +79,47 @@ main.py:729 → 비스트리밍도 동일 문제
   모델 생성 (2-3s)
 ```
 
-### 2.4 코드 버그
+### 2.4 두 가지 세션 개념 (혼동 주의)
 
-| 위치 | 문제 | 수정 |
-|------|------|------|
-| `main.py:407` | session_id 미전달 | `session_id=actual_session_id` 추가 |
-| `main.py:729` | session_id 미전달 | `session_id=actual_session_id` 추가 |
-| `claude_cli.py:139` | 속성명 오타 | `continue_session` → `continue_conversation` |
+| 구분 | wrapper의 session_id | Claude CLI의 resume |
+|------|---------------------|---------------------|
+| 위치 | `session_manager.py` | `claude-agent-sdk` |
+| 용도 | 대화 히스토리 저장 | CLI 프로세스 재사용 |
+| 방식 | messages 배열 누적 | CLI 내부 컨텍스트 유지 |
+
+**wrapper는 이미 전체 대화 히스토리를 messages로 매번 전달** → CLI resume 사용 시 컨텍스트 중복 위험
 
 ## 3. 해결 방안
 
-### 3.1 즉시 수정 (Session Reuse)
+### 3.1 방안 비교
+
+| 방안 | 설명 | 복잡도 | 효과 |
+|------|------|--------|------|
+| ClaudeSDKClient | 프로세스 유지, 양방향 통신 | 높음 | 높음 |
+| 프로세스 풀링 | warm 프로세스 미리 유지 | 중간 | 중간 |
+| CLI 최적화 조사 | SDK/CLI 레벨 개선 탐색 | 낮음 | 미지수 |
+
+### 3.2 권장: ClaudeSDKClient 도입 검토
 
 ```python
-# main.py:407, 729
-async for chunk in claude_cli.run_completion(
-    prompt=prompt,
-    system_prompt=system_prompt,
-    model=claude_options.get("model"),
-    max_turns=claude_options.get("max_turns", 10),
-    allowed_tools=claude_options.get("allowed_tools"),
-    disallowed_tools=claude_options.get("disallowed_tools"),
-    stream=True,
-    session_id=actual_session_id,  # 추가
-):
+# 현재: query() - stateless, 매번 새 프로세스
+async for message in query(prompt=prompt, options=options):
+    yield message
+
+# 개선: ClaudeSDKClient - 프로세스 유지
+async with ClaudeSDKClient(options=options) as client:
+    await client.query(prompt)
+    async for msg in client.receive_response():
+        yield msg
 ```
 
-### 3.2 예상 효과
+**장점:**
+- 프로세스 재사용으로 warm-up 제거
+- 인터럽트, 권한 모드 변경 등 추가 기능
 
-- 첫 호출: 10s (불가피)
-- 이후 호출: 2-3s (CLI 재사용)
-- **개선: 70-80% 시간 단축**
+**단점:**
+- 아키텍처 변경 필요
+- 연결 관리 복잡성 증가
 
 ## 4. claude-agent-sdk 기능 분석
 
@@ -178,10 +192,10 @@ class ResultMessage:
 
 ## 6. 확장 로드맵
 
-### Phase 1: 성능 수정 (ccow-ayl)
-- [ ] session_id 전달 수정
-- [ ] continue_conversation 오타 수정
-- [ ] 테스트 및 측정
+### Phase 1: 성능 개선 (ccow-ayl)
+- [ ] CLI 로딩 최적화 방안 조사
+- [ ] ClaudeSDKClient 도입 검토
+- [ ] 프로세스 풀링 가능성 평가
 
 ### Phase 2: SDK 기능 활용
 - [ ] 비용/토큰 정보 응답에 포함
