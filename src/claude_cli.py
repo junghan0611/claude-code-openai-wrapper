@@ -118,6 +118,9 @@ class ClaudeCodeCLI:
                 # Build SDK options
                 # Independent mode: disable MCP/plugins for faster startup (6s -> 4s)
                 independent_mode = os.environ.get("CLAUDE_INDEPENDENT_MODE", "").lower() in ("1", "true", "yes")
+                # Minimal tools mode: reduce tool set for faster response (7s -> 4s)
+                minimal_tools = os.environ.get("CLAUDE_MINIMAL_TOOLS", "").lower() in ("1", "true", "yes")
+
                 extra_args = {}
                 if independent_mode:
                     # Get path to empty MCP config
@@ -129,6 +132,12 @@ class ClaudeCodeCLI:
                         "setting-sources": "",
                     }
                     logger.info("Independent mode enabled: MCP/plugins disabled for faster startup")
+
+                # Apply minimal tools if enabled and no explicit allowed_tools
+                if minimal_tools and not allowed_tools:
+                    # Core tools for API scenarios: file ops, search, web
+                    extra_args["tools"] = "Bash,Glob,Grep,Read,Edit,Write,WebFetch,WebSearch"
+                    logger.info("Minimal tools mode enabled: 8 core tools only")
 
                 options = ClaudeAgentOptions(max_turns=max_turns, cwd=self.cwd, extra_args=extra_args)
 

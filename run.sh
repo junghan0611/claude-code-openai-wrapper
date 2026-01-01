@@ -15,6 +15,8 @@ export DEFAULT_MODEL="${DEFAULT_MODEL:-claude-sonnet-4-5-20250929}"
 export RATE_LIMIT_ENABLED="${RATE_LIMIT_ENABLED:-false}"
 # Independent mode: disable MCP/plugins for faster startup (6s -> 4s)
 export CLAUDE_INDEPENDENT_MODE="${CLAUDE_INDEPENDENT_MODE:-true}"
+# Minimal tools mode: reduce tool set for faster response (7s -> 4s)
+export CLAUDE_MINIMAL_TOOLS="${CLAUDE_MINIMAL_TOOLS:-true}"
 
 # Stop Docker container if running (from docker-based run.sh)
 stop_docker_if_running() {
@@ -57,6 +59,7 @@ while [[ $# -gt 0 ]]; do
             echo "  DEFAULT_MODEL           Default model (default: claude-sonnet-4-5-20250929)"
             echo "  RATE_LIMIT_ENABLED      Rate limiting (default: false)"
             echo "  CLAUDE_INDEPENDENT_MODE Disable MCP/plugins for faster startup (default: true)"
+            echo "  CLAUDE_MINIMAL_TOOLS    Use minimal tool set for faster response (default: true)"
             echo ""
             echo "Examples:"
             echo "  ./run.sh --reload                    # 개발 모드"
@@ -97,9 +100,14 @@ echo "   URL: http://localhost:$PORT"
 echo "   CWD: $CLAUDE_CWD"
 echo "   Timeout: ${MAX_TIMEOUT}ms | Model: $DEFAULT_MODEL"
 if [ "$CLAUDE_INDEPENDENT_MODE" = "true" ] || [ "$CLAUDE_INDEPENDENT_MODE" = "1" ]; then
-    echo "   ⚡ Independent Mode: ON (MCP/plugins disabled, ~31% faster)"
+    echo "   ⚡ Independent Mode: ON (MCP/plugins disabled)"
 else
     echo "   🔗 Independent Mode: OFF (MCP/plugins enabled)"
+fi
+if [ "$CLAUDE_MINIMAL_TOOLS" = "true" ] || [ "$CLAUDE_MINIMAL_TOOLS" = "1" ]; then
+    echo "   🔧 Minimal Tools: ON (8 core tools only)"
+else
+    echo "   🛠️  Minimal Tools: OFF (all 18 tools)"
 fi
 echo "   Press Ctrl+C to stop"
 echo ""

@@ -133,7 +133,36 @@ extra_args = {
 - ❌ 플러그인/스킬
 - ❌ 슬래시 명령
 
-### 3.3 장기: ClaudeSDKClient 도입 검토
+### 3.3 최소 도구 모드 (CLAUDE_MINIMAL_TOOLS) ✅ 구현됨
+
+**성능 측정 결과:**
+| 모드 | 시간 | 도구 수 | 개선 |
+|------|------|---------|------|
+| 독립 모드 (기준) | 7.1s | 18개 | - |
+| + 최소 도구 | 4.3s | 8개 | **-39%** |
+
+**환경변수:**
+```bash
+CLAUDE_MINIMAL_TOOLS=true  # 기본값: true
+```
+
+**유지되는 도구 (8개):**
+- Bash, Glob, Grep (셸/검색)
+- Read, Edit, Write (파일 작업)
+- WebFetch, WebSearch (웹 검색)
+
+**비활성화되는 도구 (10개):**
+- Task, TaskOutput (에이전트 스폰)
+- LSP (IDE 용)
+- AskUserQuestion, TodoWrite (interactive)
+- NotebookEdit (Jupyter)
+- EnterPlanMode, ExitPlanMode (계획 모드)
+- Skill, KillShell (기타)
+
+**작동 원리:**
+도구 정의가 시스템 프롬프트에 포함되므로 도구 감소 = 토큰 감소 = 응답 속도 향상
+
+### 3.4 장기: ClaudeSDKClient 도입 검토
 
 ```python
 # 현재: query() - stateless, 매번 새 프로세스

@@ -191,12 +191,15 @@ async def lifespan(app: FastAPI):
 
     # Print startup banner
     independent_mode = os.environ.get("CLAUDE_INDEPENDENT_MODE", "").lower() in ("1", "true", "yes")
+    minimal_tools = os.environ.get("CLAUDE_MINIMAL_TOOLS", "").lower() in ("1", "true", "yes")
     mode_str = "⚡ Independent (MCP off)" if independent_mode else "🔗 Full (MCP on)"
+    tools_str = "🔧 Minimal (8 tools)" if minimal_tools else "🛠️  Full (18 tools)"
     logger.info("")
     logger.info("=" * 60)
     logger.info("🚀 Claude Code OpenAI Wrapper READY")
-    logger.info(f"   Mode: {mode_str}")
-    logger.info(f"   CWD:  {os.environ.get('CLAUDE_CWD', 'Not set')}")
+    logger.info(f"   Mode:  {mode_str}")
+    logger.info(f"   Tools: {tools_str}")
+    logger.info(f"   CWD:   {os.environ.get('CLAUDE_CWD', 'Not set')}")
     logger.info(f"   Model: {os.environ.get('DEFAULT_MODEL', 'claude-sonnet-4-5-20250929')}")
     logger.info("=" * 60)
     logger.info("")
