@@ -2,6 +2,74 @@
 
 An OpenAI API-compatible wrapper for Claude Code, allowing you to use Claude Code with any OpenAI client library. **Now powered by the official Claude Agent SDK v0.1.18** with enhanced authentication and features.
 
+---
+
+## ko Branch: Doom Emacs + gptel Integration
+
+> **This section is specific to the `ko` branch fork. For upstream features, see below.**
+
+This fork is optimized for **Doom Emacs + gptel** users who want to use Claude Code's flat-rate subscription via OpenAI-compatible API.
+
+### Quick Start (gptel users)
+
+```bash
+# Clone ko branch
+git clone -b ko https://github.com/junghan0611/claude-code-openai-wrapper
+cd claude-code-openai-wrapper
+
+# Start with Nix (recommended)
+nix develop
+./run.sh
+
+# Or with Poetry
+poetry install && ./run.sh
+```
+
+### gptel Configuration (Emacs)
+
+```elisp
+(setq gptel-claude-code-backend
+      (gptel-make-openai "Claude-Code"
+        :host "localhost:8000"
+        :endpoint "/v1/chat/completions"
+        :protocol "http"
+        :stream t
+        :key "not-needed"
+        :models '((claude-sonnet-4-5-20250929
+                   :description "Best coding model"
+                   :capabilities (tool-use)))))
+
+;; Enable Claude Code tools (Read, Write, Bash, WebSearch, etc.)
+(advice-add 'gptel--request-data :around #'gptel--claude-code-add-enable-tools)
+```
+
+### Performance Optimization (ko branch exclusive)
+
+Two environment variables provide **~57% faster response** (10s → 4.3s):
+
+| Variable | Default | Effect |
+|----------|---------|--------|
+| `CLAUDE_INDEPENDENT_MODE` | `true` | Disable MCP/plugins (-31%) |
+| `CLAUDE_MINIMAL_TOOLS` | `true` | Use 8 core tools only (-39%) |
+
+**Core tools preserved:** Bash, Glob, Grep, Read, Edit, Write, WebFetch, WebSearch
+
+### ko Branch Features
+
+- **NixOS support** via `flake.nix`
+- **Performance optimizations** (Independent Mode, Minimal Tools)
+- **Clean startup banner** with mode display
+- **bd (beads) issue tracking** for development
+
+### Related Files
+
+- gptel config: `~/sync/emacs/doomemacs-config/lisp/ai-gptel.el`
+- Docker runner: `~/sync/emacs/doomemacs-config/docker/claude-wrapper/run.sh`
+- Architecture: `docs/ARCHITECTURE_ANALYSIS.md`
+- Changelog: `CHANGELOG.md`
+
+---
+
 ## Version
 
 **Current Version:** 2.1.0 🆕
