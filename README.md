@@ -6,6 +6,17 @@ An OpenAI API-compatible wrapper for Claude Code, allowing you to use Claude Cod
 
 ## ko Branch: Doom Emacs + gptel Integration
 
+<!-- Keep these links. Translations will automatically update with the README. -->
+[Deutsch](https://zdoc.app/de/junghan0611/claude-code-openai-wrapper) | 
+[English](https://zdoc.app/en/junghan0611/claude-code-openai-wrapper) | 
+[Español](https://zdoc.app/es/junghan0611/claude-code-openai-wrapper) | 
+[français](https://zdoc.app/fr/junghan0611/claude-code-openai-wrapper) | 
+[日本語](https://zdoc.app/ja/junghan0611/claude-code-openai-wrapper) | 
+[한국어](https://zdoc.app/ko/junghan0611/claude-code-openai-wrapper) | 
+[Português](https://zdoc.app/pt/junghan0611/claude-code-openai-wrapper) | 
+[Русский](https://zdoc.app/ru/junghan0611/claude-code-openai-wrapper) | 
+[中文](https://zdoc.app/zh/junghan0611/claude-code-openai-wrapper)
+
 > **This section is specific to the `ko` branch fork. For upstream features, see below.**
 
 This fork is optimized for **Doom Emacs + gptel** users who want to use Claude Code's flat-rate subscription via OpenAI-compatible API.
