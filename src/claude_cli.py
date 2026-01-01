@@ -116,7 +116,21 @@ class ClaudeCodeCLI:
 
             try:
                 # Build SDK options
-                options = ClaudeAgentOptions(max_turns=max_turns, cwd=self.cwd)
+                # Independent mode: disable MCP/plugins for faster startup (6s -> 4s)
+                independent_mode = os.environ.get("CLAUDE_INDEPENDENT_MODE", "").lower() in ("1", "true", "yes")
+                extra_args = {}
+                if independent_mode:
+                    # Get path to empty MCP config
+                    empty_mcp_path = Path(__file__).parent / "empty-mcp.json"
+                    extra_args = {
+                        "strict-mcp-config": None,
+                        "mcp-config": str(empty_mcp_path),
+                        "disable-slash-commands": None,
+                        "setting-sources": "",
+                    }
+                    logger.info("Independent mode enabled: MCP/plugins disabled for faster startup")
+
+                options = ClaudeAgentOptions(max_turns=max_turns, cwd=self.cwd, extra_args=extra_args)
 
                 # Set model if specified
                 if model:

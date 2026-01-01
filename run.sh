@@ -13,6 +13,8 @@ export CLAUDE_CWD="${CLAUDE_CWD:-$HOME/org}"
 export MAX_TIMEOUT="${MAX_TIMEOUT:-300000}"  # 5분
 export DEFAULT_MODEL="${DEFAULT_MODEL:-claude-sonnet-4-5-20250929}"
 export RATE_LIMIT_ENABLED="${RATE_LIMIT_ENABLED:-false}"
+# Independent mode: disable MCP/plugins for faster startup (6s -> 4s)
+export CLAUDE_INDEPENDENT_MODE="${CLAUDE_INDEPENDENT_MODE:-true}"
 
 # Stop Docker container if running (from docker-based run.sh)
 stop_docker_if_running() {
@@ -50,10 +52,11 @@ while [[ $# -gt 0 ]]; do
             echo "  --help, -h       Show this help"
             echo ""
             echo "Environment Variables:"
-            echo "  CLAUDE_CWD          Working directory for Claude (default: ~/org)"
-            echo "  MAX_TIMEOUT         Request timeout ms (default: 300000 = 5분)"
-            echo "  DEFAULT_MODEL       Default model (default: claude-sonnet-4-5-20250929)"
-            echo "  RATE_LIMIT_ENABLED  Rate limiting (default: false)"
+            echo "  CLAUDE_CWD              Working directory for Claude (default: ~/org)"
+            echo "  MAX_TIMEOUT             Request timeout ms (default: 300000 = 5분)"
+            echo "  DEFAULT_MODEL           Default model (default: claude-sonnet-4-5-20250929)"
+            echo "  RATE_LIMIT_ENABLED      Rate limiting (default: false)"
+            echo "  CLAUDE_INDEPENDENT_MODE Disable MCP/plugins for faster startup (default: true)"
             echo ""
             echo "Examples:"
             echo "  ./run.sh --reload                    # 개발 모드"

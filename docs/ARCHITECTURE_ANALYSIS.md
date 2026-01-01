@@ -100,29 +100,38 @@ SDK의 `query()` 함수는 의도적으로 stateless:
 | ClaudeSDKClient | 프로세스 유지, 양방향 통신 | 높음 | 높음 |
 | 프로세스 풀링 | warm 프로세스 미리 유지 | 중간 | 높음 |
 
-### 3.2 즉시 적용 가능한 최적화
+### 3.2 독립 모드 (CLAUDE_INDEPENDENT_MODE) ✅ 구현됨
+
+**성능 측정 결과:**
+| 모드 | 시간 | 개선 |
+|------|------|------|
+| 기본 (MCP 포함) | 6.1s | - |
+| 독립 모드 | 4.2s | **-31%** |
 
 **환경변수:**
 ```bash
-CLAUDE_AGENT_SDK_SKIP_VERSION_CHECK=1  # 매 요청 버전 체크 제거
+CLAUDE_INDEPENDENT_MODE=true  # 기본값: true
 ```
 
-**CLI 옵션 (ClaudeAgentOptions.extra_args):**
+**적용되는 CLI 옵션:**
 ```python
-options = ClaudeAgentOptions(
-    extra_args={
-        'no-session-persistence': None,  # 세션 디스크 저장 안함
-    }
-)
+extra_args = {
+    "strict-mcp-config": None,       # MCP 서버 연결 안함
+    "mcp-config": "empty-mcp.json",  # 빈 MCP 설정
+    "disable-slash-commands": None,   # 슬래시 명령 로드 안함
+    "setting-sources": "",            # 외부 설정 로드 안함
+}
 ```
 
-**SDK 호출 방식 (subprocess_cli.py:174):**
-```python
-# 현재: 항상 --verbose 포함
-cmd = [self._cli_path, '--output-format', 'stream-json', '--verbose']
+**유지되는 기능:**
+- ✅ 작업 디렉토리 (cwd)
+- ✅ 내장 도구: WebSearch, WebFetch, Bash, Read, Edit, Write 등
+- ✅ 모델 선택, 시스템 프롬프트
 
-# --verbose 제거 시 로그 출력 감소 → 약간의 I/O 감소
-```
+**비활성화되는 기능:**
+- ❌ MCP 서버 (context7, github 등)
+- ❌ 플러그인/스킬
+- ❌ 슬래시 명령
 
 ### 3.3 장기: ClaudeSDKClient 도입 검토
 
