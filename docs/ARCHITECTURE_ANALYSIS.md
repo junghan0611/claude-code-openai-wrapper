@@ -95,11 +95,36 @@ SDK의 `query()` 함수는 의도적으로 stateless:
 
 | 방안 | 설명 | 복잡도 | 효과 |
 |------|------|--------|------|
+| 환경변수 최적화 | 버전 체크 건너뛰기 등 | 낮음 | 낮음 |
+| CLI 옵션 추가 | --no-session-persistence 등 | 낮음 | 낮음~중간 |
 | ClaudeSDKClient | 프로세스 유지, 양방향 통신 | 높음 | 높음 |
-| 프로세스 풀링 | warm 프로세스 미리 유지 | 중간 | 중간 |
-| CLI 최적화 조사 | SDK/CLI 레벨 개선 탐색 | 낮음 | 미지수 |
+| 프로세스 풀링 | warm 프로세스 미리 유지 | 중간 | 높음 |
 
-### 3.2 권장: ClaudeSDKClient 도입 검토
+### 3.2 즉시 적용 가능한 최적화
+
+**환경변수:**
+```bash
+CLAUDE_AGENT_SDK_SKIP_VERSION_CHECK=1  # 매 요청 버전 체크 제거
+```
+
+**CLI 옵션 (ClaudeAgentOptions.extra_args):**
+```python
+options = ClaudeAgentOptions(
+    extra_args={
+        'no-session-persistence': None,  # 세션 디스크 저장 안함
+    }
+)
+```
+
+**SDK 호출 방식 (subprocess_cli.py:174):**
+```python
+# 현재: 항상 --verbose 포함
+cmd = [self._cli_path, '--output-format', 'stream-json', '--verbose']
+
+# --verbose 제거 시 로그 출력 감소 → 약간의 I/O 감소
+```
+
+### 3.3 장기: ClaudeSDKClient 도입 검토
 
 ```python
 # 현재: query() - stateless, 매번 새 프로세스
