@@ -103,6 +103,7 @@ class ClaudeCodeCLI:
         disallowed_tools: Optional[List[str]] = None,
         session_id: Optional[str] = None,
         continue_session: bool = False,
+        permission_mode: Optional[str] = None,
     ) -> AsyncGenerator[Dict[str, Any], None]:
         """Run Claude Agent using the Python SDK and yield response chunks."""
 
@@ -157,6 +158,10 @@ class ClaudeCodeCLI:
                     options.allowed_tools = allowed_tools
                 if disallowed_tools:
                     options.disallowed_tools = disallowed_tools
+
+                # Set permission mode (needed for tool execution in API context)
+                if permission_mode:
+                    options.permission_mode = permission_mode
 
                 # Handle session continuity
                 if continue_session:
@@ -235,9 +240,17 @@ class ClaudeCodeCLI:
             }
 
     def parse_claude_message(self, messages: List[Dict[str, Any]]) -> Optional[str]:
-        """Extract all messages from Claude Agent SDK including tool results."""
-        all_parts = []
+        """Extract all messages from Claude Agent SDK including tool results.
 
+        For multi-turn conversations, also checks ResultMessage.result.
+        Includes tool_result content formatted as code blocks.
+        """
+        # First, check for ResultMessage with 'result' field (multi-turn completion)
+        for message in messages:
+            if message.get("subtype") == "success" and "result" in message:
+                return message["result"]
+
+        all_parts = []
         for message in messages:
             msg_type = message.get("type")
 
