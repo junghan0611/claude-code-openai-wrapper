@@ -46,18 +46,20 @@ See `docs/ARCHITECTURE_ANALYSIS.md` for details.
 
 ---
 
-## Issue Tracking
+## Issue Tracking with br (beads_rust)
 
-This project uses **bd** (beads) for issue tracking with prefix `ccow-`. Run `bd onboard` to get started.
+**Note:** `br` is non-invasive and never executes git commands. After `br sync --flush-only`, you must manually run `git add .beads/ && git commit`.
+
+This project uses **br** (beads_rust) for issue tracking with prefix `ccow-`. Run `br onboard` to get started.
 
 ## Quick Reference
 
 ```bash
 # Issue workflow
-bd ready                          # Find available work
-bd show <id>                      # View issue details
-bd update <id> --status in_progress  # Claim work
-bd close <id>                     # Complete work
+br ready                          # Find available work
+br show <id>                      # View issue details
+br update <id> --status in_progress  # Claim work
+br close <id>                     # Complete work
 ```
 
 ## Landing the Plane (Session Completion)
@@ -67,12 +69,17 @@ bd close <id>                     # Complete work
 git add -A
 git commit -m "your message"
 
-# 2. Push
+# 2. Sync and commit beads
+br sync --flush-only
+git add .beads/
+git commit -m "sync beads"
+
+# 3. Push
 git pull --rebase origin ko
 git push origin ko
 
-# 3. Verify
-bd list && git status
+# 4. Verify
+br list && git status
 ```
 
 **Note:** `.beads/` folder is included directly in ko branch. No separate sync needed.
