@@ -246,12 +246,12 @@ class TestChatCompletionRequest:
         assert options["model"] == "claude-sonnet-4-5-20250929"
 
     def test_to_claude_options_with_max_tokens(self):
-        """to_claude_options() maps max_tokens to max_thinking_tokens."""
+        """to_claude_options() maps max_tokens to thinking budget."""
         request = ChatCompletionRequest(
             messages=[Message(role="user", content="Hi")], max_tokens=500
         )
         options = request.to_claude_options()
-        assert options.get("max_thinking_tokens") == 500
+        assert options.get("thinking") == {"type": "enabled", "budget_tokens": 500}
 
     def test_to_claude_options_prefers_max_completion_tokens(self):
         """max_completion_tokens takes precedence over max_tokens."""
@@ -261,7 +261,7 @@ class TestChatCompletionRequest:
             max_completion_tokens=1000,
         )
         options = request.to_claude_options()
-        assert options.get("max_thinking_tokens") == 1000
+        assert options.get("thinking") == {"type": "enabled", "budget_tokens": 1000}
 
 
 class TestChatCompletionResponse:

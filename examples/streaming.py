@@ -58,7 +58,7 @@ class StreamingClient:
         
         self.client = OpenAI(base_url=base_url, api_key=api_key)
         
-    def stream_with_timing(self, messages: list, model: str = "claude-3-5-sonnet-20241022"):
+    def stream_with_timing(self, messages: list, model: str = "claude-sonnet-4-5-20250929"):
         """Stream response with timing information."""
         start_time = time.time()
         first_token_time = None
@@ -103,7 +103,7 @@ class StreamingClient:
             process_func = lambda x: x  # Default: no processing
             
         stream = self.client.chat.completions.create(
-            model="claude-3-5-sonnet-20241022",
+            model="claude-sonnet-4-5-20250929",
             messages=messages,
             stream=True
         )
@@ -147,7 +147,7 @@ def typing_effect_demo():
     ]
     
     stream = client.client.chat.completions.create(
-        model="claude-3-5-sonnet-20241022",
+        model="claude-sonnet-4-5-20250929",
         messages=messages,
         stream=True
     )
@@ -198,7 +198,7 @@ def progress_bar_demo():
     
     # This is a simple demo - real progress would need token counting
     stream = client.client.chat.completions.create(
-        model="claude-3-5-sonnet-20241022",
+        model="claude-sonnet-4-5-20250929",
         messages=messages,
         stream=True
     )
@@ -241,7 +241,7 @@ def error_recovery_demo():
         
         # Retry with valid model
         stream = client.client.chat.completions.create(
-            model="claude-3-5-sonnet-20241022",
+            model="claude-sonnet-4-5-20250929",
             messages=messages,
             stream=True
         )

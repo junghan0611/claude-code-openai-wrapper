@@ -65,7 +65,7 @@ def basic_chat_example(client: OpenAI):
     print("=== Basic Chat Completion ===")
     
     response = client.chat.completions.create(
-        model="claude-3-5-sonnet-20241022",
+        model="claude-sonnet-4-5-20250929",
         messages=[
             {"role": "user", "content": "What is the capital of France?"}
         ]
@@ -82,7 +82,7 @@ def system_message_example(client: OpenAI):
     print("=== Chat with System Message ===")
     
     response = client.chat.completions.create(
-        model="claude-3-5-sonnet-20241022",
+        model="claude-sonnet-4-5-20250929",
         messages=[
             {"role": "system", "content": "You are a helpful coding assistant. Be concise."},
             {"role": "user", "content": "How do I read a file in Python?"}
@@ -104,7 +104,7 @@ def conversation_example(client: OpenAI):
     ]
     
     response = client.chat.completions.create(
-        model="claude-3-5-sonnet-20241022",
+        model="claude-sonnet-4-5-20250929",
         messages=messages
     )
     
@@ -117,7 +117,7 @@ def streaming_example(client: OpenAI):
     print("=== Streaming Response ===")
     
     stream = client.chat.completions.create(
-        model="claude-3-5-sonnet-20241022",
+        model="claude-sonnet-4-5-20250929",
         messages=[
             {"role": "user", "content": "Write a haiku about programming"}
         ],
@@ -136,7 +136,7 @@ def file_operation_example(client: OpenAI):
     print("=== File Operation Example ===")
     
     response = client.chat.completions.create(
-        model="claude-3-5-sonnet-20241022",
+        model="claude-sonnet-4-5-20250929",
         messages=[
             {"role": "user", "content": "List the files in the current directory"}
         ]
@@ -151,7 +151,7 @@ def code_generation_example(client: OpenAI):
     print("=== Code Generation Example ===")
     
     response = client.chat.completions.create(
-        model="claude-3-5-sonnet-20241022",
+        model="claude-sonnet-4-5-20250929",
         messages=[
             {"role": "user", "content": "Write a Python function that calculates fibonacci numbers"}
         ],

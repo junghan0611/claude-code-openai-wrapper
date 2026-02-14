@@ -4,6 +4,28 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [2026-02-14] - SDK Upgrade & Claude Opus 4.6 Support
+
+### Added
+
+- **Claude Opus 4.6** (`claude-opus-4-6`) support - most intelligent model with 200K/1M context
+- **Model selection CLI**: `./run.sh -m opus|sonnet|haiku` for easy model switching
+- **Effort control**: `X-Claude-Effort` header (low/medium/high/max) for thinking depth
+- **Backward-compatible thinking API**: `X-Claude-Max-Thinking-Tokens` header now maps to new ThinkingConfig
+
+### Changed
+
+- **Claude Agent SDK** upgraded from v0.1.18 to v0.1.36 (bundled CLI 2.1.42)
+- **Default model** changed from `claude-sonnet-4-5-20250929` to `claude-opus-4-6`
+- `max_thinking_tokens` internally mapped to new `thinking` config (SDK deprecation)
+- Opus 4.5 moved to legacy model status
+
+### Environment Variables
+
+```bash
+DEFAULT_MODEL=claude-opus-4-6     # New default (was claude-sonnet-4-5-20250929)
+```
+
 ## [2026-01-01] - Performance Optimization
 
 ### Added

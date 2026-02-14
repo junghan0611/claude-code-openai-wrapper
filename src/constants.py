@@ -66,30 +66,25 @@ DEFAULT_DISALLOWED_TOOLS = [
 ]
 
 # Claude Models
-# Models supported by Claude Agent SDK (as of December 2025)
+# Models supported by Claude Agent SDK (as of February 2026)
 # NOTE: Claude Agent SDK only supports Claude 4+ models, not Claude 3.x
 CLAUDE_MODELS = [
-    # Claude 4.5 Family (Latest - Fall 2025) - RECOMMENDED
-    "claude-opus-4-5-20251101",   # Latest Opus 4.5 - Most capable (Nov 2025)
-    "claude-opus-4-5-20250929",   # Opus 4.5 - Previous version
-    "claude-sonnet-4-5-20250929",  # Recommended - best coding model
-    "claude-haiku-4-5-20251001",  # Fast & cheap
-    # Claude 4.1
-    "claude-opus-4-1-20250805",  # Upgraded Opus 4
-    # Claude 4.0 Family (Original - May 2025)
-    "claude-opus-4-20250514",
-    "claude-sonnet-4-20250514",
-    # Claude 3.x Family - NOT SUPPORTED by Claude Agent SDK
-    # These models work with Anthropic API but NOT with Claude Code
-    # Uncomment only if using direct Anthropic API (not Claude Agent SDK)
-    # "claude-3-7-sonnet-20250219",
-    # "claude-3-5-sonnet-20241022",
-    # "claude-3-5-haiku-20241022",
+    # Claude 4.6 (Latest - February 2026)
+    "claude-opus-4-6",            # Most intelligent, 200K/1M context, 128K output
+    # Claude 4.5 Family (Fall 2025)
+    "claude-sonnet-4-5-20250929",  # Best coding model, fast
+    "claude-haiku-4-5-20251001",  # Fastest, near-frontier intelligence
+    # Legacy models
+    "claude-opus-4-5-20251101",   # Opus 4.5 (Nov 2025)
+    "claude-opus-4-5-20250929",   # Opus 4.5 (Sep 2025)
+    "claude-opus-4-1-20250805",   # Opus 4.1
+    "claude-opus-4-20250514",     # Opus 4.0
+    "claude-sonnet-4-20250514",   # Sonnet 4.0
 ]
 
-# Default model (recommended for most use cases)
+# Default model (most capable)
 # Can be overridden via DEFAULT_MODEL environment variable
-DEFAULT_MODEL = os.getenv("DEFAULT_MODEL", "claude-sonnet-4-5-20250929")
+DEFAULT_MODEL = os.getenv("DEFAULT_MODEL", "claude-opus-4-6")
 
 # Fast model (for speed/cost optimization)
 FAST_MODEL = "claude-haiku-4-5-20251001"

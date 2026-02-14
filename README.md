@@ -1,6 +1,6 @@
 # Claude Code OpenAI API Wrapper
 
-An OpenAI API-compatible wrapper for Claude Code, allowing you to use Claude Code with any OpenAI client library. **Now powered by the official Claude Agent SDK v0.1.18** with enhanced authentication and features.
+An OpenAI API-compatible wrapper for Claude Code, allowing you to use Claude Code with any OpenAI client library. **Now powered by the official Claude Agent SDK v0.1.36** with enhanced authentication and features.
 
 ---
 
@@ -46,7 +46,10 @@ poetry install && ./run.sh
         :protocol "http"
         :stream t
         :key "not-needed"
-        :models '((claude-sonnet-4-5-20250929
+        :models '((claude-opus-4-6
+                   :description "Most intelligent model"
+                   :capabilities (tool-use))
+                  (claude-sonnet-4-5-20250929
                    :description "Best coding model"
                    :capabilities (tool-use)))))
 
@@ -101,7 +104,7 @@ Two environment variables provide **~57% faster response** (10s → 4.3s):
 ## Status
 
 🎉 **Production Ready** - All core features working and tested:
-- ✅ Chat completions endpoint with **official Claude Agent SDK v0.1.18**
+- ✅ Chat completions endpoint with **official Claude Agent SDK v0.1.36**
 - ✅ **Anthropic Messages API** (`/v1/messages`) for native compatibility
 - ✅ Streaming and non-streaming responses
 - ✅ Full OpenAI SDK compatibility
@@ -200,7 +203,7 @@ poetry run python test_endpoints.py
      ```
    - **Option C**: Use AWS Bedrock or Google Vertex AI (see Configuration section)
 
-> **Note:** The Claude Code CLI is bundled with the SDK (v0.1.18+). No separate Node.js or npm installation required!
+> **Note:** The Claude Code CLI is bundled with the SDK (v0.1.36+). No separate Node.js or npm installation required!
 
 ## Installation
 
@@ -548,22 +551,19 @@ for chunk in stream:
 
 ## Supported Models
 
-All Claude models through November 2025 are supported:
+All Claude models through February 2026 are supported:
 
-### Claude 4.5 Family (Latest - Fall 2025)
-- **`claude-opus-4-5-20250929`** 🎯 Most Capable - Latest Opus with enhanced reasoning and capabilities
-- **`claude-sonnet-4-5-20250929`** ⭐ Recommended - Best coding model, superior reasoning and math
-- **`claude-haiku-4-5-20251001`** ⚡ Fast & Cheap - Similar performance to Sonnet 4 at 1/3 cost
+### Claude 4.6 (Latest - February 2026)
+- **`claude-opus-4-6`** 🎯 Most Intelligent - 200K/1M context, 128K output, adaptive thinking
 
-### Claude 4.1 & 4.0 Family
-- **`claude-opus-4-1-20250805`** - Upgraded Opus 4 with improved agentic tasks and reasoning
-- `claude-opus-4-20250514` - Original Opus 4 with extended thinking mode
-- `claude-sonnet-4-20250514` - Original Sonnet 4 with hybrid reasoning
+### Claude 4.5 Family (Fall 2025)
+- **`claude-sonnet-4-5-20250929`** ⭐ Best Coding - Fast with superior reasoning
+- **`claude-haiku-4-5-20251001`** ⚡ Fastest - Near-frontier intelligence at lowest cost
 
-### Claude 3.x Family
-- `claude-3-7-sonnet-20250219` - Hybrid model with rapid/thoughtful response modes
-- `claude-3-5-sonnet-20241022` - Previous generation Sonnet
-- `claude-3-5-haiku-20241022` - Previous generation fast model
+### Legacy Models
+- `claude-opus-4-5-20251101` - Opus 4.5 (Nov 2025)
+- `claude-opus-4-1-20250805` - Opus 4.1
+- `claude-opus-4-20250514` / `claude-sonnet-4-20250514` - Original 4.0 family
 
 **Note:** The model parameter is passed to Claude Code via the SDK's model selection.
 
@@ -697,7 +697,7 @@ See `examples/session_continuity.py` for comprehensive Python examples and `exam
 - **Tool Execution Fix**: `enable_tools: true` now works correctly
 
 ### ✅ **v2.0.0 - v2.1.0 Features**
-- Claude Agent SDK v0.1.18 with bundled CLI
+- Claude Agent SDK v0.1.36 with bundled CLI
 - Multi-provider auth (CLI, API key, Bedrock, Vertex AI)
 - Session continuity and management
 - Real-time cost and token tracking

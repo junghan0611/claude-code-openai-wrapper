@@ -206,7 +206,7 @@ async def lifespan(app: FastAPI):
     print(f"  Mode:  {mode_str}")
     print(f"  Tools: {tools_str}")
     print(f"  CWD:   {os.environ.get('CLAUDE_CWD', 'Not set')}")
-    print(f"  Model: {os.environ.get('DEFAULT_MODEL', 'claude-sonnet-4-5-20250929')}")
+    print(f"  Model: {os.environ.get('DEFAULT_MODEL', 'claude-opus-4-6')}")
     print("=" * 50)
     print()
 
@@ -988,7 +988,8 @@ async def check_compatibility(request_body: ChatCompletionRequest):
                 "allowed_tools",
                 "disallowed_tools",
                 "permission_mode",
-                "max_thinking_tokens",
+                "thinking",
+                "effort",
                 "continue_conversation",
                 "resume",
                 "cwd",
@@ -999,6 +1000,7 @@ async def check_compatibility(request_body: ChatCompletionRequest):
                 "X-Claude-Disallowed-Tools",
                 "X-Claude-Permission-Mode",
                 "X-Claude-Max-Thinking-Tokens",
+                "X-Claude-Effort",
             ],
         },
     }
@@ -1360,7 +1362,7 @@ async def root():
 
             const quickstartCode = `curl -X POST http://localhost:8000/v1/chat/completions \\\\
   -H "Content-Type: application/json" \\\\
-  -d '{{"model": "claude-sonnet-4-5-20250929", "messages": [{{"role": "user", "content": "Hello!"}}]}}'`;
+  -d '{{"model": "claude-opus-4-6", "messages": [{{"role": "user", "content": "Hello!"}}]}}'`;
 
             async function highlightQuickstart() {{
                 const theme = isDark() ? darkTheme : lightTheme;
@@ -1376,7 +1378,7 @@ async def root():
             highlightQuickstart();
         </script>
         <script>
-            const quickstartText = 'curl -X POST http://localhost:8000/v1/chat/completions -H "Content-Type: application/json" -d \\'{{"model": "claude-sonnet-4-5-20250929", "messages": [{{"role": "user", "content": "Hello!"}}]}}\\'';
+            const quickstartText = 'curl -X POST http://localhost:8000/v1/chat/completions -H "Content-Type: application/json" -d \\'{{"model": "claude-opus-4-6", "messages": [{{"role": "user", "content": "Hello!"}}]}}\\'';
 
             function copyQuickstart() {{
                 if (navigator.clipboard && navigator.clipboard.writeText) {{
@@ -1681,7 +1683,7 @@ async def debug_request_validation(request: Request):
                 "validation_result": validation_result,
                 "debug_mode_enabled": DEBUG_MODE or VERBOSE,
                 "example_valid_request": {
-                    "model": "claude-3-sonnet-20240229",
+                    "model": "claude-opus-4-6",
                     "messages": [{"role": "user", "content": "Hello, world!"}],
                     "stream": False,
                 },

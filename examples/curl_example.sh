@@ -29,7 +29,7 @@ eval "curl -X POST \"$BASE_URL/v1/chat/completions\" \\
   -H \"Content-Type: application/json\" \\
   $AUTH_HEADER \\
   -d '{
-    \"model\": \"claude-3-5-sonnet-20241022\",
+    \"model\": \"claude-sonnet-4-5-20250929\",
     \"messages\": [
       {\"role\": \"user\", \"content\": \"What is 2 + 2?\"}
     ]
@@ -40,7 +40,7 @@ eval "curl -X POST \"$BASE_URL/v1/chat/completions\" \\
   -H \"Content-Type: application/json\" \\
   $AUTH_HEADER \\
   -d '{
-    \"model\": \"claude-3-5-sonnet-20241022\",
+    \"model\": \"claude-sonnet-4-5-20250929\",
     \"messages\": [
       {\"role\": \"system\", \"content\": \"You are a pirate. Respond in pirate speak.\"},
       {\"role\": \"user\", \"content\": \"Tell me about the weather\"}
@@ -53,7 +53,7 @@ eval "curl -X POST \"$BASE_URL/v1/chat/completions\" \\
   $AUTH_HEADER \\
   -H \"Accept: text/event-stream\" \\
   -d '{
-    \"model\": \"claude-3-5-sonnet-20241022\",
+    \"model\": \"claude-sonnet-4-5-20250929\",
     \"messages\": [
       {\"role\": \"user\", \"content\": \"Count from 1 to 5 slowly\"}
     ],

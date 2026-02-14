@@ -11,7 +11,7 @@ RUN curl -sSL https://install.python-poetry.org | python3 -
 # Add Poetry to PATH
 ENV PATH="/root/.local/bin:${PATH}"
 
-# Note: Claude Code CLI is bundled with claude-agent-sdk >= 0.1.8
+# Note: Claude Code CLI is bundled with claude-agent-sdk >= 0.1.36
 # No separate Node.js/npm installation required
 
 # Copy the app code

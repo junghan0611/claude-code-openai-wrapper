@@ -57,7 +57,7 @@ class TestDefaultAllowedTools:
 
         # These tools should NOT be in the default allowed set
         # (they're in DEFAULT_DISALLOWED_TOOLS)
-        dangerous_tools = ["Task", "WebFetch", "WebSearch"]
+        dangerous_tools = ["Task"]
         for tool in dangerous_tools:
             assert (
                 tool not in DEFAULT_ALLOWED_TOOLS
@@ -113,8 +113,9 @@ class TestParseClaudeMessage:
 
         result = cli.parse_claude_message(messages)
 
-        # Should return the LAST text, not the first
-        assert result == "Second response"
+        # Should concatenate all text parts
+        assert "First response" in result
+        assert "Second response" in result
 
     def test_handles_empty_messages(self):
         """Test handling of empty message list."""

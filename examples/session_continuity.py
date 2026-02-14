@@ -26,7 +26,7 @@ def demo_session_continuity():
     # First interaction - introduce context
     print("\n📝 First Message (introducing context):")
     response1 = client.chat.completions.create(
-        model="claude-3-5-sonnet-20241022",
+        model="claude-sonnet-4-5-20250929",
         messages=[
             {"role": "user", "content": "Hello! I'm working on a Python web API project using FastAPI. My name is Alex."}
         ],
@@ -39,7 +39,7 @@ def demo_session_continuity():
     # Second interaction - ask follow-up that requires memory
     print("\n🔄 Second Message (testing memory):")
     response2 = client.chat.completions.create(
-        model="claude-3-5-sonnet-20241022",
+        model="claude-sonnet-4-5-20250929",
         messages=[
             {"role": "user", "content": "What's my name and what type of project am I working on?"}
         ],
@@ -52,7 +52,7 @@ def demo_session_continuity():
     # Third interaction - continue the conversation
     print("\n🚀 Third Message (building on context):")
     response3 = client.chat.completions.create(
-        model="claude-3-5-sonnet-20241022",
+        model="claude-sonnet-4-5-20250929",
         messages=[
             {"role": "user", "content": "Can you help me add authentication to my FastAPI project?"}
         ],
@@ -76,7 +76,7 @@ def demo_stateless_vs_session():
     print("\n❌ Stateless Mode (no session_id):")
     print("Message 1:")
     client.chat.completions.create(
-        model="claude-3-5-sonnet-20241022",
+        model="claude-sonnet-4-5-20250929",
         messages=[{"role": "user", "content": "My favorite programming language is Python."}]
         # No session_id = stateless
     )
@@ -84,7 +84,7 @@ def demo_stateless_vs_session():
     
     print("\nMessage 2 (separate request):")
     response_stateless = client.chat.completions.create(
-        model="claude-3-5-sonnet-20241022",
+        model="claude-sonnet-4-5-20250929",
         messages=[{"role": "user", "content": "What's my favorite programming language?"}]
         # No session_id = Claude has no memory of previous message
     )
@@ -96,7 +96,7 @@ def demo_stateless_vs_session():
     
     print("Message 1:")
     client.chat.completions.create(
-        model="claude-3-5-sonnet-20241022",
+        model="claude-sonnet-4-5-20250929",
         messages=[{"role": "user", "content": "My favorite programming language is JavaScript."}],
         extra_body={"session_id": session_id}
     )
@@ -104,7 +104,7 @@ def demo_stateless_vs_session():
     
     print("\nMessage 2 (same session):")
     response_session = client.chat.completions.create(
-        model="claude-3-5-sonnet-20241022",
+        model="claude-sonnet-4-5-20250929",
         messages=[{"role": "user", "content": "What's my favorite programming language?"}],
         extra_body={"session_id": session_id}
     )
@@ -126,7 +126,7 @@ def demo_session_management():
     
     for session_id in session_ids:
         client.chat.completions.create(
-            model="claude-3-5-sonnet-20241022",
+            model="claude-sonnet-4-5-20250929",
             messages=[{"role": "user", "content": f"Hello from {session_id}!"}],
             extra_body={"session_id": session_id}
         )
@@ -175,7 +175,7 @@ def main():
     try:
         # Test server connection
         health_response = client.chat.completions.create(
-            model="claude-3-5-sonnet-20241022",
+            model="claude-sonnet-4-5-20250929",
             messages=[{"role": "user", "content": "Hello!"}]
         )
         print("✅ Server connection successful!")

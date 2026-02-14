@@ -20,7 +20,7 @@ echo "Request: Hello! I'm Sarah and I'm learning React."
 curl -s -X POST "$BASE_URL/v1/chat/completions" \
   -H "Content-Type: application/json" \
   -d "{
-    \"model\": \"claude-3-5-sonnet-20241022\",
+    \"model\": \"claude-sonnet-4-5-20250929\",
     \"messages\": [
       {\"role\": \"user\", \"content\": \"Hello! I'm Sarah and I'm learning React.\"}
     ],
@@ -34,7 +34,7 @@ echo "Request: What's my name and what am I learning?"
 curl -s -X POST "$BASE_URL/v1/chat/completions" \
   -H "Content-Type: application/json" \
   -d "{
-    \"model\": \"claude-3-5-sonnet-20241022\",
+    \"model\": \"claude-sonnet-4-5-20250929\",
     \"messages\": [
       {\"role\": \"user\", \"content\": \"What's my name and what am I learning?\"}
     ],
@@ -48,7 +48,7 @@ echo "Request: Can you suggest a simple React project for me?"
 curl -s -X POST "$BASE_URL/v1/chat/completions" \
   -H "Content-Type: application/json" \
   -d "{
-    \"model\": \"claude-3-5-sonnet-20241022\",
+    \"model\": \"claude-sonnet-4-5-20250929\",
     \"messages\": [
       {\"role\": \"user\", \"content\": \"Can you suggest a simple React project for me?\"}
     ],
@@ -81,7 +81,7 @@ echo "Request: Thanks for your help!"
 curl -s -X POST "$BASE_URL/v1/chat/completions" \
   -H "Content-Type: application/json" \
   -d "{
-    \"model\": \"claude-3-5-sonnet-20241022\",
+    \"model\": \"claude-sonnet-4-5-20250929\",
     \"messages\": [
       {\"role\": \"user\", \"content\": \"Thanks for your help!\"}
     ],

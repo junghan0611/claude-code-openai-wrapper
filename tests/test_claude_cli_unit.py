@@ -117,8 +117,8 @@ class TestClaudeCodeCLIParseMessage:
         result = cli.parse_claude_message(messages)
         assert result is None
 
-    def test_parse_uses_last_text(self, cli_class):
-        """When multiple messages, uses the last one with text."""
+    def test_parse_concatenates_all_text(self, cli_class):
+        """When multiple messages, concatenates all text parts."""
         cli = MagicMock()
         cli.parse_claude_message = cli_class.parse_claude_message.__get__(cli, cli_class)
 
@@ -127,7 +127,8 @@ class TestClaudeCodeCLIParseMessage:
             {"content": [{"type": "text", "text": "Second response"}]},
         ]
         result = cli.parse_claude_message(messages)
-        assert result == "Second response"
+        assert "First response" in result
+        assert "Second response" in result
 
     def test_result_takes_priority(self, cli_class):
         """ResultMessage.result takes priority over AssistantMessage."""
@@ -548,7 +549,7 @@ class TestClaudeCodeCLIRunCompletion:
 
             assert len(captured_options) == 1
             opts = captured_options[0]
-            assert opts.system_prompt == {"type": "text", "text": "You are helpful"}
+            assert opts.system_prompt == {"type": "preset", "preset": "claude_code", "append": "You are helpful"}
 
     @pytest.mark.asyncio
     async def test_run_completion_with_model(self, cli_instance):

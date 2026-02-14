@@ -56,6 +56,7 @@ class ParameterValidator:
         disallowed_tools: Optional[List[str]] = None,
         permission_mode: Optional[str] = None,
         max_thinking_tokens: Optional[int] = None,
+        effort: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         Create enhanced Claude Code SDK options with additional parameters.
@@ -84,12 +85,21 @@ class ParameterValidator:
             if cls.validate_permission_mode(permission_mode):
                 options["permission_mode"] = permission_mode
 
+        # Thinking budget: map max_thinking_tokens to new thinking config
         if max_thinking_tokens is not None:
-            if max_thinking_tokens < 0 or max_thinking_tokens > 50000:
+            if max_thinking_tokens < 0 or max_thinking_tokens > 128000:
                 logger.warning(
-                    f"max_thinking_tokens={max_thinking_tokens} is outside recommended range (0-50000)"
+                    f"max_thinking_tokens={max_thinking_tokens} is outside recommended range (0-128000)"
                 )
-            options["max_thinking_tokens"] = max_thinking_tokens
+            options["thinking"] = {"type": "enabled", "budget_tokens": max_thinking_tokens}
+
+        # Effort level (low/medium/high/max)
+        if effort is not None:
+            valid_efforts = {"low", "medium", "high", "max"}
+            if effort not in valid_efforts:
+                logger.warning(f"Invalid effort '{effort}'. Valid: {valid_efforts}")
+            else:
+                options["effort"] = effort
 
         return options
 
@@ -130,13 +140,24 @@ class ParameterValidator:
         if "x-claude-permission-mode" in headers:
             claude_options["permission_mode"] = headers["x-claude-permission-mode"]
 
-        # Extract max thinking tokens
+        # Extract thinking budget (backward-compatible: maps to new thinking config)
         if "x-claude-max-thinking-tokens" in headers:
             try:
-                claude_options["max_thinking_tokens"] = int(headers["x-claude-max-thinking-tokens"])
+                budget = int(headers["x-claude-max-thinking-tokens"])
+                claude_options["thinking"] = {"type": "enabled", "budget_tokens": budget}
             except ValueError:
                 logger.warning(
                     f"Invalid X-Claude-Max-Thinking-Tokens header: {headers['x-claude-max-thinking-tokens']}"
+                )
+
+        # Extract effort level (low/medium/high/max)
+        if "x-claude-effort" in headers:
+            effort = headers["x-claude-effort"].lower().strip()
+            if effort in {"low", "medium", "high", "max"}:
+                claude_options["effort"] = effort
+            else:
+                logger.warning(
+                    f"Invalid X-Claude-Effort header: '{effort}'. Valid: low, medium, high, max"
                 )
 
         return claude_options
@@ -181,7 +202,7 @@ class CompatibilityReporter:
         if request.max_tokens:
             report["unsupported_parameters"].append("max_tokens")
             report["suggestions"].append(
-                "Use max_turns parameter instead to limit conversation length, or use max_thinking_tokens to limit internal reasoning."
+                "Use max_turns parameter instead to limit conversation length, or use X-Claude-Effort header to control thinking depth."
             )
 
         if request.n > 1:

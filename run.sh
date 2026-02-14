@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Claude Code OpenAI Wrapper - Local Development Server
-# Usage: ./run.sh [--reload] [--port PORT] [--cwd PATH]
+# Usage: ./run.sh [--model MODEL] [--reload] [--port PORT] [--cwd PATH]
 
 set -e
 
@@ -11,7 +11,16 @@ DOCKER_CONTAINER="claude-wrapper-container"
 export CLAUDE_CWD="${CLAUDE_CWD:-$HOME/org}"
 # Performance settings
 export MAX_TIMEOUT="${MAX_TIMEOUT:-300000}"  # 5분
-export DEFAULT_MODEL="${DEFAULT_MODEL:-claude-sonnet-4-5-20250929}"
+# Model aliases: opus, sonnet, haiku → full model ID
+resolve_model_alias() {
+    case "$1" in
+        opus)   echo "claude-opus-4-6" ;;
+        sonnet) echo "claude-sonnet-4-5-20250929" ;;
+        haiku)  echo "claude-haiku-4-5-20251001" ;;
+        *)      echo "$1" ;;  # pass through full model ID as-is
+    esac
+}
+export DEFAULT_MODEL="${DEFAULT_MODEL:-claude-opus-4-6}"
 export RATE_LIMIT_ENABLED="${RATE_LIMIT_ENABLED:-false}"
 # Independent mode: disable MCP/plugins for faster startup (6s -> 4s)
 export CLAUDE_INDEPENDENT_MODE="${CLAUDE_INDEPENDENT_MODE:-true}"
@@ -32,6 +41,10 @@ stop_docker_if_running() {
 # Parse arguments
 while [[ $# -gt 0 ]]; do
     case $1 in
+        --model|-m)
+            export DEFAULT_MODEL="$(resolve_model_alias "$2")"
+            shift 2
+            ;;
         --reload|-r)
             RELOAD="--reload"
             shift
@@ -48,23 +61,30 @@ while [[ $# -gt 0 ]]; do
             echo "Usage: $(basename "$0") [OPTIONS]"
             echo ""
             echo "Options:"
-            echo "  --reload, -r     Enable auto-reload on file changes"
-            echo "  --port, -p PORT  Set server port (default: 8000)"
-            echo "  --cwd, -c PATH   Set Claude working directory (default: ~/org)"
-            echo "  --help, -h       Show this help"
+            echo "  --model, -m MODEL  Set model: opus, sonnet, haiku (default: opus)"
+            echo "  --reload, -r       Enable auto-reload on file changes"
+            echo "  --port, -p PORT    Set server port (default: 8000)"
+            echo "  --cwd, -c PATH     Set Claude working directory (default: ~/org)"
+            echo "  --help, -h         Show this help"
+            echo ""
+            echo "Model Aliases:"
+            echo "  opus    → claude-opus-4-6 (default)"
+            echo "  sonnet  → claude-sonnet-4-5-20250929"
+            echo "  haiku   → claude-haiku-4-5-20251001"
             echo ""
             echo "Environment Variables:"
             echo "  CLAUDE_CWD              Working directory for Claude (default: ~/org)"
-            echo "  MAX_TIMEOUT             Request timeout ms (default: 300000 = 5분)"
-            echo "  DEFAULT_MODEL           Default model (default: claude-sonnet-4-5-20250929)"
+            echo "  MAX_TIMEOUT             Request timeout ms (default: 300000 = 5min)"
+            echo "  DEFAULT_MODEL           Default model (default: claude-opus-4-6)"
             echo "  RATE_LIMIT_ENABLED      Rate limiting (default: false)"
             echo "  CLAUDE_INDEPENDENT_MODE Disable MCP/plugins for faster startup (default: true)"
             echo "  CLAUDE_MINIMAL_TOOLS    Use minimal tool set for faster response (default: true)"
             echo ""
             echo "Examples:"
-            echo "  ./run.sh --reload                    # 개발 모드"
-            echo "  MAX_TIMEOUT=600000 ./run.sh          # 10분 타임아웃"
-            echo "  DEFAULT_MODEL=claude-haiku-4-5-20251001 ./run.sh  # 빠른 모델"
+            echo "  ./run.sh                             # opus (default)"
+            echo "  ./run.sh -m sonnet                   # sonnet model"
+            echo "  ./run.sh --model haiku --reload      # haiku + dev mode"
+            echo "  ./run.sh -m sonnet -p 9000           # sonnet on port 9000"
             exit 0
             ;;
         *)
