@@ -1,0 +1,4 @@
+# file: /home/junghan/repos/gh/claude-code-openai-wrapper/src/claude_cli.py
+# hypothesis_version: 6.148.8
+
+[0.0, 1000, 600000, '1', 'CLAUDE_MINIMAL_TOOLS', 'Hello', '_', '__dict__', 'append', 'assistant', 'claude_code', 'completion_tokens', 'content', 'data', 'duration_api_ms', 'duration_ms', 'empty-mcp.json', 'error_message', 'init', 'is_error', 'mcp-config', 'message', 'model', 'num_turns', 'preset', 'prompt_tokens', 'result', 'session_id', 'setting-sources', 'strict-mcp-config', 'subtype', 'success', 'system', 'text', 'tool_result', 'tools', 'total_cost_usd', 'total_tokens', 'true', 'type', 'yes']

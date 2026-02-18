@@ -85,13 +85,26 @@ class ParameterValidator:
             if cls.validate_permission_mode(permission_mode):
                 options["permission_mode"] = permission_mode
 
-        # Thinking budget: map max_thinking_tokens to new thinking config
+        # Thinking config: adaptive for 4.6 models, budget_tokens for older
+        from src.constants import CLAUDE_4_6_MODELS
+
+        model = options.get("model", request.model)
+        is_4_6_model = model in CLAUDE_4_6_MODELS
+
         if max_thinking_tokens is not None:
-            if max_thinking_tokens < 0 or max_thinking_tokens > 128000:
-                logger.warning(
-                    f"max_thinking_tokens={max_thinking_tokens} is outside recommended range (0-128000)"
+            if is_4_6_model:
+                # Claude 4.6: budget_tokens is deprecated, use adaptive thinking
+                logger.info(
+                    f"Ignoring max_thinking_tokens={max_thinking_tokens} for Claude 4.6 model "
+                    "(budget_tokens deprecated). Using adaptive thinking instead."
                 )
-            options["thinking"] = {"type": "enabled", "budget_tokens": max_thinking_tokens}
+                options["thinking"] = {"type": "adaptive"}
+            else:
+                if max_thinking_tokens < 0 or max_thinking_tokens > 128000:
+                    logger.warning(
+                        f"max_thinking_tokens={max_thinking_tokens} is outside recommended range (0-128000)"
+                    )
+                options["thinking"] = {"type": "enabled", "budget_tokens": max_thinking_tokens}
 
         # Effort level (low/medium/high/max)
         if effort is not None:
@@ -140,8 +153,26 @@ class ParameterValidator:
         if "x-claude-permission-mode" in headers:
             claude_options["permission_mode"] = headers["x-claude-permission-mode"]
 
-        # Extract thinking budget (backward-compatible: maps to new thinking config)
-        if "x-claude-max-thinking-tokens" in headers:
+        # Extract thinking config
+        # For Claude 4.6 models, X-Claude-Thinking-Type header controls thinking mode
+        if "x-claude-thinking-type" in headers:
+            thinking_type = headers["x-claude-thinking-type"].lower().strip()
+            if thinking_type == "adaptive":
+                claude_options["thinking"] = {"type": "adaptive"}
+            elif thinking_type == "enabled" and "x-claude-max-thinking-tokens" in headers:
+                try:
+                    budget = int(headers["x-claude-max-thinking-tokens"])
+                    claude_options["thinking"] = {"type": "enabled", "budget_tokens": budget}
+                except ValueError:
+                    logger.warning(
+                        f"Invalid X-Claude-Max-Thinking-Tokens header: {headers['x-claude-max-thinking-tokens']}"
+                    )
+            else:
+                logger.warning(
+                    f"Invalid X-Claude-Thinking-Type header: '{thinking_type}'. Valid: adaptive, enabled"
+                )
+        elif "x-claude-max-thinking-tokens" in headers:
+            # Backward-compatible: maps to thinking config
             try:
                 budget = int(headers["x-claude-max-thinking-tokens"])
                 claude_options["thinking"] = {"type": "enabled", "budget_tokens": budget}

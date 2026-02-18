@@ -70,7 +70,8 @@ DEFAULT_DISALLOWED_TOOLS = [
 # NOTE: Claude Agent SDK only supports Claude 4+ models, not Claude 3.x
 CLAUDE_MODELS = [
     # Claude 4.6 (Latest - February 2026)
-    "claude-opus-4-6",            # Most intelligent, 200K/1M context, 128K output
+    "claude-opus-4-6",            # Most intelligent, adaptive thinking, 200K/1M context, 128K output
+    "claude-sonnet-4-6",          # Fast + intelligent, agentic search, $3/$15 per 1M tokens
     # Claude 4.5 Family (Fall 2025)
     "claude-sonnet-4-5-20250929",  # Best coding model, fast
     "claude-haiku-4-5-20251001",  # Fastest, near-frontier intelligence
@@ -82,12 +83,15 @@ CLAUDE_MODELS = [
     "claude-sonnet-4-20250514",   # Sonnet 4.0
 ]
 
+# Claude 4.6 models (for feature detection: adaptive thinking, no prefill, etc.)
+CLAUDE_4_6_MODELS = {"claude-opus-4-6", "claude-sonnet-4-6"}
+
 # Default model (most capable)
 # Can be overridden via DEFAULT_MODEL environment variable
-DEFAULT_MODEL = os.getenv("DEFAULT_MODEL", "claude-opus-4-6")
+DEFAULT_MODEL = os.getenv("DEFAULT_MODEL", "claude-sonnet-4-6")
 
 # Fast model (for speed/cost optimization)
-FAST_MODEL = "claude-haiku-4-5-20251001"
+FAST_MODEL = "claude-sonnet-4-6"
 
 # System Prompt Types
 SYSTEM_PROMPT_TYPE_TEXT = "text"

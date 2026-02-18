@@ -245,17 +245,38 @@ class TestChatCompletionRequest:
         options = request.to_claude_options()
         assert options["model"] == "claude-sonnet-4-5-20250929"
 
-    def test_to_claude_options_with_max_tokens(self):
-        """to_claude_options() maps max_tokens to thinking budget."""
+    def test_to_claude_options_with_max_tokens_legacy_model(self):
+        """to_claude_options() maps max_tokens to thinking budget for pre-4.6 models."""
         request = ChatCompletionRequest(
+            model="claude-sonnet-4-5-20250929",
             messages=[Message(role="user", content="Hi")], max_tokens=500
         )
         options = request.to_claude_options()
         assert options.get("thinking") == {"type": "enabled", "budget_tokens": 500}
 
-    def test_to_claude_options_prefers_max_completion_tokens(self):
-        """max_completion_tokens takes precedence over max_tokens."""
+    def test_to_claude_options_adaptive_thinking_for_4_6(self):
+        """to_claude_options() uses adaptive thinking for Claude 4.6 models."""
         request = ChatCompletionRequest(
+            model="claude-sonnet-4-6",
+            messages=[Message(role="user", content="Hi")],
+        )
+        options = request.to_claude_options()
+        assert options.get("thinking") == {"type": "adaptive"}
+
+    def test_to_claude_options_adaptive_thinking_ignores_max_tokens(self):
+        """Claude 4.6 models use adaptive thinking regardless of max_tokens."""
+        request = ChatCompletionRequest(
+            model="claude-opus-4-6",
+            messages=[Message(role="user", content="Hi")],
+            max_tokens=500,
+        )
+        options = request.to_claude_options()
+        assert options.get("thinking") == {"type": "adaptive"}
+
+    def test_to_claude_options_prefers_max_completion_tokens(self):
+        """max_completion_tokens takes precedence over max_tokens for pre-4.6 models."""
+        request = ChatCompletionRequest(
+            model="claude-sonnet-4-5-20250929",
             messages=[Message(role="user", content="Hi")],
             max_tokens=500,
             max_completion_tokens=1000,

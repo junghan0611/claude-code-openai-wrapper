@@ -46,11 +46,14 @@ poetry install && ./run.sh
         :protocol "http"
         :stream t
         :key "not-needed"
-        :models '((claude-opus-4-6
+        :models '((claude-sonnet-4-6
+                   :description "Fast + intelligent, best value"
+                   :capabilities (tool-use))
+                  (claude-opus-4-6
                    :description "Most intelligent model"
                    :capabilities (tool-use))
                   (claude-sonnet-4-5-20250929
-                   :description "Best coding model"
+                   :description "Sonnet 4.5 legacy"
                    :capabilities (tool-use)))))
 
 ;; Enable Claude Code tools (Read, Write, Bash, WebSearch, etc.)
@@ -554,10 +557,11 @@ for chunk in stream:
 All Claude models through February 2026 are supported:
 
 ### Claude 4.6 (Latest - February 2026)
+- **`claude-sonnet-4-6`** ⭐ Best Value - Fast + intelligent, agentic search, $3/$15 per 1M tokens
 - **`claude-opus-4-6`** 🎯 Most Intelligent - 200K/1M context, 128K output, adaptive thinking
 
 ### Claude 4.5 Family (Fall 2025)
-- **`claude-sonnet-4-5-20250929`** ⭐ Best Coding - Fast with superior reasoning
+- **`claude-sonnet-4-5-20250929`** - Strong coding model, fast
 - **`claude-haiku-4-5-20251001`** ⚡ Fastest - Near-frontier intelligence at lowest cost
 
 ### Legacy Models

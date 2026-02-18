@@ -172,6 +172,8 @@ class ChatCompletionRequest(BaseModel):
 
     def to_claude_options(self) -> Dict[str, Any]:
         """Convert OpenAI request parameters to Claude Code SDK options."""
+        from src.constants import CLAUDE_4_6_MODELS
+
         # Log parameter handling information
         self.log_parameter_info()
 
@@ -181,10 +183,19 @@ class ChatCompletionRequest(BaseModel):
         if self.model:
             options["model"] = self.model
 
-        # Map max_tokens to thinking budget (best effort)
+        # Map max_tokens to thinking config
         max_token_value = self.max_completion_tokens or self.max_tokens
-        if max_token_value is not None:
-            # Claude SDK uses ThinkingConfig for token budgets (max_thinking_tokens is deprecated)
+        is_4_6_model = self.model in CLAUDE_4_6_MODELS
+
+        if is_4_6_model:
+            # Claude 4.6: Use adaptive thinking (budget_tokens is deprecated)
+            # Effort can be overridden via X-Claude-Effort header
+            options["thinking"] = {"type": "adaptive"}
+            logger.info(
+                "Using adaptive thinking for Claude 4.6 model (budget_tokens deprecated)"
+            )
+        elif max_token_value is not None:
+            # Pre-4.6 models: Use enabled thinking with budget_tokens
             options["thinking"] = {"type": "enabled", "budget_tokens": max_token_value}
             logger.info(
                 f"Mapped max_tokens={max_token_value} to thinking budget (approximate behavior)"
@@ -201,7 +212,9 @@ class ChatCompletionRequest(BaseModel):
 class Choice(BaseModel):
     index: int
     message: Message
-    finish_reason: Optional[Literal["stop", "length", "content_filter", "null"]] = None
+    finish_reason: Optional[
+        Literal["stop", "length", "content_filter", "refusal", "model_context_window_exceeded", "null"]
+    ] = None
 
 
 class Usage(BaseModel):
@@ -223,7 +236,9 @@ class ChatCompletionResponse(BaseModel):
 class StreamChoice(BaseModel):
     index: int
     delta: Dict[str, Any]
-    finish_reason: Optional[Literal["stop", "length", "content_filter", "null"]] = None
+    finish_reason: Optional[
+        Literal["stop", "length", "content_filter", "refusal", "model_context_window_exceeded", "null"]
+    ] = None
 
 
 class ChatCompletionStreamResponse(BaseModel):
@@ -473,6 +488,8 @@ class AnthropicMessagesResponse(BaseModel):
     role: Literal["assistant"] = "assistant"
     content: List[AnthropicTextBlock]
     model: str
-    stop_reason: Optional[Literal["end_turn", "max_tokens", "stop_sequence"]] = "end_turn"
+    stop_reason: Optional[
+        Literal["end_turn", "max_tokens", "stop_sequence", "refusal", "model_context_window_exceeded"]
+    ] = "end_turn"
     stop_sequence: Optional[str] = None
     usage: AnthropicUsage

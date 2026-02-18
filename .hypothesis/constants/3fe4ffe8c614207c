@@ -1,0 +1,4 @@
+# file: /home/junghan/repos/gh/claude-code-openai-wrapper/src/message_adapter.py
+# hypothesis_version: 6.148.8
+
+['<args>.*?</args>', '<bash>.*?</bash>', '\\n\\s*\\n\\s*\\n', 'assistant', 'content', 'finish_reason', 'model', 'role', 'stop', 'system', 'user']

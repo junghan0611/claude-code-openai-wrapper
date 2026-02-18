@@ -1,0 +1,4 @@
+# file: /home/junghan/repos/gh/claude-code-openai-wrapper/src/parameter_validator.py
+# hypothesis_version: 6.148.8
+
+[1.0, 100, 128000, ',', 'acceptEdits', 'adaptive', 'allowed_tools', 'budget_tokens', 'bypassPermissions', 'default', 'disallowed_tools', 'effort', 'enabled', 'frequency_penalty', 'high', 'logit_bias', 'low', 'max', 'max_tokens', 'max_turns', 'medium', 'messages', 'model', 'n', 'permission_mode', 'plan', 'presence_penalty', 'stop', 'stream', 'suggestions', 'supported_parameters', 'temperature', 'thinking', 'top_p', 'type', 'user (for logging)', 'warnings', 'x-claude-effort', 'x-claude-max-turns']
