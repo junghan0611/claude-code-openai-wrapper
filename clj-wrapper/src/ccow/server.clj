@@ -90,12 +90,11 @@
             in  (java.io.PipedInputStream. out 65536)]
         (future
           (try
-            (let [writer   (java.io.OutputStreamWriter. out "UTF-8")
-                  first-ms (atom nil)]
+            (let [^java.io.Writer writer (java.io.OutputStreamWriter. out "UTF-8")
+                  first-ms (atom nil)
+                  w! (fn [^String s] (.write writer s) (.flush writer))]
               ;; role 청크
-              (.write writer (sse-chunk request-id model
-                                        {:role "assistant" :content ""}))
-              (.flush writer)
+              (w! (sse-chunk request-id model {:role "assistant" :content ""}))
 
               ;; Claude 실행 + 스트리밍
               (claude/query!
@@ -106,26 +105,23 @@
                           (when-not @first-ms
                             (reset! first-ms (System/currentTimeMillis))
                             (log "   ⏱️ first token:" (str (- @first-ms start-ms) "ms")))
-                          (.write writer (sse-chunk request-id model {:content text}))
-                          (.flush writer))
+                          (w! (sse-chunk request-id model {:content text})))
                         (when (= type :tool)
                           (log "   🔧" name))
                         (when (and (= type :tool-result) text (not (str/blank? text)))
-                          (let [formatted (str "\n```\n" text "\n```\n")]
-                            (.write writer (sse-chunk request-id model {:content formatted}))
-                            (.flush writer))))))
+                          (w! (sse-chunk request-id model
+                                         {:content (str "\n```\n" text "\n```\n")}))))))
 
               ;; 종료 청크
-              (.write writer (sse-chunk request-id model {} :finish-reason "stop"))
-              (.write writer "data: [DONE]\n\n")
-              (.flush writer)
+              (w! (sse-chunk request-id model {} :finish-reason "stop"))
+              (w! "data: [DONE]\n\n")
               (let [elapsed (- (System/currentTimeMillis) start-ms)]
                 (log "✅" (str elapsed "ms")
                      "════════════════════════════════════════")))
             (catch Exception e
               (log "❌" (.getMessage e))
-              (let [w (java.io.OutputStreamWriter. out "UTF-8")]
-                (.write w (str "data: " (json/write-str {:error {:message (.getMessage e)}}) "\n\n"))
+              (let [^java.io.Writer w (java.io.OutputStreamWriter. out "UTF-8")]
+                (.write w ^String (str "data: " (json/write-str {:error {:message (.getMessage e)}}) "\n\n"))
                 (.flush w)))
             (finally
               (.close out))))
