@@ -48,30 +48,42 @@
        (spit f "{\"mcpServers\": {}}")
        (.getAbsolutePath f)))))
 
+(defn- current-time-prompt
+  "현재 KST 시간 정보 문자열. Denote ID 생성 등에 사용."
+  []
+  (let [kst    (java.time.ZonedDateTime/now (java.time.ZoneId/of "Asia/Seoul"))
+        fmt-ts (.format kst (java.time.format.DateTimeFormatter/ofPattern "yyyyMMdd'T'HHmmss"))
+        fmt-dt (.format kst (java.time.format.DateTimeFormatter/ofPattern "yyyy-MM-dd EEE HH:mm"))]
+    (str "Current time (KST): " fmt-dt " | Denote timestamp: " fmt-ts)))
+
 (defn- build-command
   "Claude CLI 명령어를 조립한다.
-   Independent mode: MCP/플러그인 비활성화로 ~4초 빠른 시작.
+   Independent mode: MCP 비활성화, 스킬은 로드 (0.1초 차이).
    Minimal tools: 8개 핵심 도구만 사용."
   [{:keys [prompt model system-prompt max-turns
            allowed-tools permission-mode]}]
   (let [cli             (find-cli)
         independent?    (env-truthy? "CLAUDE_INDEPENDENT_MODE")
-        minimal-tools?  (env-truthy? "CLAUDE_MINIMAL_TOOLS")]
+        minimal-tools?  (env-truthy? "CLAUDE_MINIMAL_TOOLS")
+        ;; 시간 정보 + 사용자 system-prompt 결합
+        time-info       (current-time-prompt)
+        full-sys-prompt (if system-prompt
+                          (str time-info "\n\n" system-prompt)
+                          time-info)]
     (cond-> [cli "--output-format" "stream-json" "--verbose"
              "--max-turns" (str (or max-turns 10))
              "--print" prompt]
-      ;; Independent mode — MCP/플러그인/슬래시 커맨드 비활성화
+      ;; Independent mode — MCP만 차단, 스킬은 로드됨
       independent?    (into ["--strict-mcp-config"
-                             "--mcp-config" (empty-mcp-path)
-                             "--disable-slash-commands"
-                             "--setting-sources" ""])
+                             "--mcp-config" (empty-mcp-path)])
       ;; Minimal tools — 8개 핵심 도구만
       (and minimal-tools?
            (not allowed-tools))
                         (into ["--tools" (str/join "," core-tools)])
+      ;; 시간 정보 항상 주입
+      true            (into ["--append-system-prompt" full-sys-prompt])
       ;; 명시적 옵션
       model           (into ["--model" model])
-      system-prompt   (into ["--append-system-prompt" system-prompt])
       allowed-tools   (into ["--allowedTools" (str/join "," allowed-tools)])
       permission-mode (into ["--permission-mode" permission-mode]))))
 

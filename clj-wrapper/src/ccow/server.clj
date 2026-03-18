@@ -59,6 +59,11 @@
 
 ;; ── 핸들러 ─────────────────────────────────────────────────────
 
+(defn- log [& args]
+  (let [ts (-> (java.time.LocalDateTime/now)
+               (.format (java.time.format.DateTimeFormatter/ofPattern "HH:mm:ss")))]
+    (println (str ts " " (str/join " " args)))))
+
 (defn- handle-chat-completions
   "POST /v1/chat/completions — SSE 스트리밍 & 논스트리밍 응답."
   [body cwd default-model]
@@ -68,7 +73,16 @@
         enable-tools (:enable_tools body false)
         [prompt system-prompt] (messages->prompt messages)
         request-id   (generate-request-id)
-        claude-opts  (build-claude-opts prompt system-prompt model enable-tools cwd)]
+        claude-opts  (build-claude-opts prompt system-prompt model enable-tools cwd)
+        prompt-preview (let [p (str/replace prompt #"\n" " ")]
+                         (if (> (count p) 60) (str (subs p 0 60) "...") p))
+        start-ms     (System/currentTimeMillis)]
+
+    (log "")
+    (log "════════════════════════════════════════")
+    (log "🔄" model "|" (if stream "stream" "sync")
+         (when enable-tools " | 🔧 tools"))
+    (log "   " prompt-preview)
 
     (if stream
       ;; ── 스트리밍 응답 ──
@@ -76,7 +90,8 @@
             in  (java.io.PipedInputStream. out 65536)]
         (future
           (try
-            (let [writer (java.io.OutputStreamWriter. out "UTF-8")]
+            (let [writer   (java.io.OutputStreamWriter. out "UTF-8")
+                  first-ms (atom nil)]
               ;; role 청크
               (.write writer (sse-chunk request-id model
                                         {:role "assistant" :content ""}))
@@ -86,10 +101,15 @@
               (claude/query!
                (assoc claude-opts
                       :callback-fn
-                      (fn [{:keys [type text]}]
+                      (fn [{:keys [type text name]}]
                         (when (and (= type :text) (not (str/blank? text)))
+                          (when-not @first-ms
+                            (reset! first-ms (System/currentTimeMillis))
+                            (log "   ⏱️ first token:" (str (- @first-ms start-ms) "ms")))
                           (.write writer (sse-chunk request-id model {:content text}))
                           (.flush writer))
+                        (when (= type :tool)
+                          (log "   🔧" name))
                         (when (and (= type :tool-result) text (not (str/blank? text)))
                           (let [formatted (str "\n```\n" text "\n```\n")]
                             (.write writer (sse-chunk request-id model {:content formatted}))
@@ -98,8 +118,12 @@
               ;; 종료 청크
               (.write writer (sse-chunk request-id model {} :finish-reason "stop"))
               (.write writer "data: [DONE]\n\n")
-              (.flush writer))
+              (.flush writer)
+              (let [elapsed (- (System/currentTimeMillis) start-ms)]
+                (log "✅" (str elapsed "ms")
+                     "════════════════════════════════════════")))
             (catch Exception e
+              (log "❌" (.getMessage e))
               (let [w (java.io.OutputStreamWriter. out "UTF-8")]
                 (.write w (str "data: " (json/write-str {:error {:message (.getMessage e)}}) "\n\n"))
                 (.flush w)))
@@ -121,7 +145,10 @@
                                   first
                                   :result-text)
                              (str/join "" text-parts)
-                             "")]
+                             "")
+            elapsed      (- (System/currentTimeMillis) start-ms)]
+        (log "✅" (str elapsed "ms") "|" (str (count result-text) " chars")
+             "════════════════════════════════════════")
         {:status  200
          :headers {"Content-Type" "application/json"}
          :body    (json/write-str
