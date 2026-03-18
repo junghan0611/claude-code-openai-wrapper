@@ -28,7 +28,7 @@
 
 (deftest handler-models-test
   (testing "GET /v1/models 응답"
-    (let [handler (server/make-handler "/tmp")
+    (let [handler (server/make-handler "/tmp" "claude-sonnet-4-6")
           resp    (handler {:request-method :get :uri "/v1/models"})
           body    (json/read-str (:body resp) :key-fn keyword)]
       (is (= 200 (:status resp)))
@@ -38,7 +38,7 @@
 
 (deftest handler-health-test
   (testing "GET /health 응답"
-    (let [handler (server/make-handler "/tmp")
+    (let [handler (server/make-handler "/tmp" "claude-sonnet-4-6")
           resp    (handler {:request-method :get :uri "/health"})
           body    (json/read-str (:body resp) :key-fn keyword)]
       (is (= 200 (:status resp)))
@@ -46,12 +46,12 @@
 
 (deftest handler-404-test
   (testing "존재하지 않는 경로는 404"
-    (let [handler (server/make-handler "/tmp")
+    (let [handler (server/make-handler "/tmp" "claude-sonnet-4-6")
           resp    (handler {:request-method :get :uri "/nonexistent"})]
       (is (= 404 (:status resp))))))
 
 (deftest cors-test
   (testing "CORS 헤더가 포함된다"
-    (let [handler (server/make-handler "/tmp")
+    (let [handler (server/make-handler "/tmp" "claude-sonnet-4-6")
           resp    (handler {:request-method :get :uri "/health"})]
       (is (= "*" (get-in resp [:headers "Access-Control-Allow-Origin"]))))))

@@ -1,6 +1,6 @@
 (ns ccow.claude
   "Claude CLI 서브프로세스 실행 및 stream-json 파싱.
-   Python SDK가 하는 일을 ~100줄로 대체."
+   Python SDK가 하는 일을 ~120줄로 대체."
   (:require [clojure.data.json :as json]
             [clojure.java.io :as io]
             [clojure.string :as str])
@@ -36,14 +36,40 @@
   "gptel에서 사용하는 핵심 도구 목록"
   ["Read" "Write" "Edit" "Bash" "Glob" "Grep" "WebSearch" "WebFetch"])
 
+(defn- env-truthy? [k]
+  (contains? #{"1" "true" "yes"} (some-> (System/getenv k) str/lower-case)))
+
+(def ^:private empty-mcp-path
+  "빈 MCP config 파일 경로 (independent mode용). 한번만 생성."
+  (memoize
+   (fn []
+     (let [f (java.io.File/createTempFile "ccow-empty-mcp" ".json")]
+       (.deleteOnExit f)
+       (spit f "{\"mcpServers\": {}}")
+       (.getAbsolutePath f)))))
+
 (defn- build-command
-  "Claude CLI 명령어를 조립한다."
-  [{:keys [prompt model system-prompt max-turns cwd
+  "Claude CLI 명령어를 조립한다.
+   Independent mode: MCP/플러그인 비활성화로 ~4초 빠른 시작.
+   Minimal tools: 8개 핵심 도구만 사용."
+  [{:keys [prompt model system-prompt max-turns
            allowed-tools permission-mode]}]
-  (let [cli (find-cli)]
+  (let [cli             (find-cli)
+        independent?    (env-truthy? "CLAUDE_INDEPENDENT_MODE")
+        minimal-tools?  (env-truthy? "CLAUDE_MINIMAL_TOOLS")]
     (cond-> [cli "--output-format" "stream-json" "--verbose"
              "--max-turns" (str (or max-turns 10))
              "--print" prompt]
+      ;; Independent mode — MCP/플러그인/슬래시 커맨드 비활성화
+      independent?    (into ["--strict-mcp-config"
+                             "--mcp-config" (empty-mcp-path)
+                             "--disable-slash-commands"
+                             "--setting-sources" ""])
+      ;; Minimal tools — 8개 핵심 도구만
+      (and minimal-tools?
+           (not allowed-tools))
+                        (into ["--tools" (str/join "," core-tools)])
+      ;; 명시적 옵션
       model           (into ["--model" model])
       system-prompt   (into ["--append-system-prompt" system-prompt])
       allowed-tools   (into ["--allowedTools" (str/join "," allowed-tools)])
@@ -108,38 +134,30 @@
 ;; ── 쿼리 실행 ──────────────────────────────────────────────────
 
 (defn query!
-  "Claude CLI를 실행하고 stream-json 메시지를 lazy seq으로 반환.
-   callback-fn이 주어지면 각 메시지마다 호출한다 (스트리밍).
-
-   opts:
-     :prompt          사용자 프롬프트 (필수)
-     :model           모델 이름
-     :system-prompt   시스템 프롬프트
-     :max-turns       최대 턴 수 (기본 10)
-     :cwd             작업 디렉토리
-     :allowed-tools   허용 도구 목록
-     :permission-mode 권한 모드
-     :callback-fn     (fn [parsed-msg] ...) 스트리밍 콜백"
+  "Claude CLI를 실행하고 stream-json 메시지를 반환.
+   callback-fn이 주어지면 각 메시지마다 호출한다 (스트리밍)."
   [{:keys [cwd callback-fn] :as opts}]
   (let [cmd    (build-command opts)
         pb     (doto (ProcessBuilder. ^java.util.List cmd)
                  (.redirectErrorStream false))
         _      (when cwd (.directory pb (io/file cwd)))
-        proc   (.start pb)
-        reader (BufferedReader. (InputStreamReader. (.getInputStream proc) "UTF-8"))]
-    (try
-      (loop [messages []]
-        (if-let [line (.readLine reader)]
-          (let [parsed (parse-stream-line line)]
-            (when (and parsed callback-fn)
-              (callback-fn parsed))
-            (recur (if parsed (conj messages parsed) messages)))
-          (do
-            (.waitFor proc)
-            messages)))
-      (finally
-        (.close reader)
-        (.destroy proc)))))
+        proc   (.start pb)]
+    ;; stdin을 즉시 닫아야 CLI가 --print 모드로 동작 후 종료
+    (.close (.getOutputStream proc))
+    (let [reader (BufferedReader. (InputStreamReader. (.getInputStream proc) "UTF-8"))]
+      (try
+        (loop [messages []]
+          (if-let [line (.readLine reader)]
+            (let [parsed (parse-stream-line line)]
+              (when (and parsed callback-fn)
+                (callback-fn parsed))
+              (recur (if parsed (conj messages parsed) messages)))
+            (do
+              (.waitFor proc)
+              messages)))
+        (finally
+          (.close reader)
+          (.destroy proc))))))
 
 (defn models
   "사용 가능한 모델 목록을 반환."
