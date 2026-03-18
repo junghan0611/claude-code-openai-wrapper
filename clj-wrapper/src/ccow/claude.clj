@@ -1,6 +1,6 @@
 (ns ccow.claude
   "Claude CLI 서브프로세스 실행 및 stream-json 파싱.
-   Python SDK가 하는 일을 ~120줄로 대체."
+   Python SDK 4,828줄을 ~160줄로 대체."
   (:require [clojure.data.json :as json]
             [clojure.java.io :as io]
             [clojure.string :as str])
@@ -23,7 +23,7 @@
               path))))
       "claude"))
 
-;; ── CLI 명령 빌드 ──────────────────────────────────────────────
+;; ── 설정 ───────────────────────────────────────────────────────
 
 (def ^:private default-models
   ["claude-sonnet-4-6" "claude-opus-4-6"
@@ -40,7 +40,7 @@
   (contains? #{"1" "true" "yes"} (some-> (System/getenv k) str/lower-case)))
 
 (def ^:private empty-mcp-path
-  "빈 MCP config 파일 경로 (independent mode용). 한번만 생성."
+  "빈 MCP config 파일 경로 (한번만 생성)."
   (memoize
    (fn []
      (let [f (java.io.File/createTempFile "ccow-empty-mcp" ".json")]
@@ -48,50 +48,75 @@
        (spit f "{\"mcpServers\": {}}")
        (.getAbsolutePath f)))))
 
+;; ── 스킬 로딩 ──────────────────────────────────────────────────
+
+(defn- load-skill
+  "~/.claude/skills/<name>/SKILL.md 내용을 읽는다."
+  [skill-name]
+  (let [path (str (System/getProperty "user.home")
+                  "/.claude/skills/" skill-name "/SKILL.md")]
+    (when (.exists (io/file path))
+      (slurp path))))
+
+(defn- build-skills-prompt
+  "CCOW_SKILLS 환경변수에 지정된 스킬만 읽어 system prompt 조각으로 만든다.
+   예: CCOW_SKILLS=botlog,denotecli,bibcli"
+  []
+  (when-let [skills-str (System/getenv "CCOW_SKILLS")]
+    (let [names   (str/split skills-str #"[,;:\s]+")
+          loaded  (keep (fn [n]
+                          (when-let [content (load-skill n)]
+                            (str "## Skill: " n "\n" content)))
+                        names)]
+      (when (seq loaded)
+        (str "# Available Skills\n\n" (str/join "\n\n" loaded))))))
+
+;; ── 시간 정보 ──────────────────────────────────────────────────
+
 (defn- current-time-prompt
-  "현재 KST 시간 정보 문자열. Denote ID 생성 등에 사용."
+  "현재 KST 시간 정보. Denote ID 생성에 사용."
   []
   (let [kst    (java.time.ZonedDateTime/now (java.time.ZoneId/of "Asia/Seoul"))
         fmt-ts (.format kst (java.time.format.DateTimeFormatter/ofPattern "yyyyMMdd'T'HHmmss"))
         fmt-dt (.format kst (java.time.format.DateTimeFormatter/ofPattern "yyyy-MM-dd EEE HH:mm"))]
     (str "Current time (KST): " fmt-dt " | Denote timestamp: " fmt-ts)))
 
+;; ── CLI 명령 빌드 ──────────────────────────────────────────────
+
 (defn- build-command
   "Claude CLI 명령어를 조립한다.
-   Independent mode: MCP 비활성화, 스킬은 로드 (0.1초 차이).
-   Minimal tools: 8개 핵심 도구만 사용."
+   클린 모드: MCP/플러그인/스킬 전부 차단 → 13.5K 토큰.
+   필요한 스킬만 CCOW_SKILLS로 system prompt에 주입."
   [{:keys [prompt model system-prompt max-turns
            allowed-tools permission-mode]}]
-  (let [cli             (find-cli)
-        independent?    (env-truthy? "CLAUDE_INDEPENDENT_MODE")
-        minimal-tools?  (env-truthy? "CLAUDE_MINIMAL_TOOLS")
-        ;; 시간 정보 + 사용자 system-prompt 결합
-        time-info       (current-time-prompt)
-        full-sys-prompt (if system-prompt
-                          (str time-info "\n\n" system-prompt)
-                          time-info)]
+  (let [cli            (find-cli)
+        minimal-tools? (env-truthy? "CLAUDE_MINIMAL_TOOLS")
+        ;; system prompt 조립: 시간 + 스킬 + 사용자 지정
+        parts          (filterv some?
+                                [(current-time-prompt)
+                                 (build-skills-prompt)
+                                 system-prompt])
+        full-sys       (str/join "\n\n" parts)]
     (cond-> [cli "--output-format" "stream-json" "--verbose"
              "--max-turns" (str (or max-turns 10))
-             "--print" prompt]
-      ;; Independent mode — MCP만 차단, 스킬은 로드됨
-      independent?    (into ["--strict-mcp-config"
-                             "--mcp-config" (empty-mcp-path)])
-      ;; Minimal tools — 8개 핵심 도구만
+             "--print" prompt
+             ;; 클린 모드: MCP/플러그인/슬래시 전부 차단
+             "--strict-mcp-config" "--mcp-config" (empty-mcp-path)
+             "--disable-slash-commands" "--setting-sources" ""]
+      ;; Minimal tools
       (and minimal-tools?
            (not allowed-tools))
-                        (into ["--tools" (str/join "," core-tools)])
-      ;; 시간 정보 항상 주입
-      true            (into ["--append-system-prompt" full-sys-prompt])
+                       (into ["--tools" (str/join "," core-tools)])
+      ;; 시간+스킬 주입
+      true             (into ["--append-system-prompt" full-sys])
       ;; 명시적 옵션
-      model           (into ["--model" model])
-      allowed-tools   (into ["--allowedTools" (str/join "," allowed-tools)])
-      permission-mode (into ["--permission-mode" permission-mode]))))
+      model            (into ["--model" model])
+      allowed-tools    (into ["--allowedTools" (str/join "," allowed-tools)])
+      permission-mode  (into ["--permission-mode" permission-mode]))))
 
 ;; ── stream-json 파싱 ───────────────────────────────────────────
 
-(defn- parse-text-blocks
-  "AssistantMessage content에서 텍스트를 추출한다."
-  [content]
+(defn- parse-text-blocks [content]
   (when (sequential? content)
     (->> content
          (keep (fn [block]
@@ -100,78 +125,57 @@
          (str/join ""))))
 
 (defn- parse-stream-line
-  "stream-json 한 줄을 파싱하여 {:type :text/:tool/:result/:system :data ...} 반환.
-   파싱 불가 시 nil."
+  "stream-json 한 줄을 파싱. 미지원 타입은 nil (forward-compatible)."
   [^String line]
   (when-not (str/blank? line)
     (try
       (let [msg (json/read-str line :key-fn keyword)]
         (case (:type msg)
           "assistant"
-          (let [content (get-in msg [:message :content])
-                text    (parse-text-blocks content)]
+          (let [text (parse-text-blocks (get-in msg [:message :content]))]
             (when (and text (not (str/blank? text)))
               {:type :text :text text :model (get-in msg [:message :model])}))
-
-          "tool_use"
-          {:type :tool :name (:name msg)}
-
-          "tool_result"
-          (let [content (:content msg)]
-            {:type :tool-result
-             :text (cond
-                     (string? content) content
-                     (sequential? content)
-                     (->> content
-                          (keep #(when (= "text" (:type %)) (:text %)))
-                          (str/join ""))
-                     :else nil)})
-
-          "result"
-          {:type       :result
-           :session-id (:session_id msg)
-           :cost       (:total_cost_usd msg)
-           :duration   (:duration_ms msg)
-           :num-turns  (:num_turns msg)
-           :is-error   (:is_error msg)
-           :result-text (:result msg)}
-
-          "system"
-          {:type :system :subtype (:subtype msg) :data msg}
-
-          ;; 미지원 타입은 무시 (forward-compatible)
+          "tool_use"    {:type :tool :name (:name msg)}
+          "tool_result" {:type :tool-result
+                         :text (let [c (:content msg)]
+                                 (cond
+                                   (string? c) c
+                                   (sequential? c)
+                                   (->> c (keep #(when (= "text" (:type %)) (:text %))) (str/join ""))
+                                   :else nil))}
+          "result"      {:type :result
+                         :session-id (:session_id msg)
+                         :cost       (:total_cost_usd msg)
+                         :duration   (:duration_ms msg)
+                         :num-turns  (:num_turns msg)
+                         :is-error   (:is_error msg)
+                         :result-text (:result msg)}
+          "system"      {:type :system :subtype (:subtype msg) :data msg}
           nil))
-      (catch Exception _e nil))))
+      (catch Exception _ nil))))
 
 ;; ── 쿼리 실행 ──────────────────────────────────────────────────
 
 (defn query!
   "Claude CLI를 실행하고 stream-json 메시지를 반환.
-   callback-fn이 주어지면 각 메시지마다 호출한다 (스트리밍)."
+   callback-fn이 주어지면 각 메시지마다 호출 (스트리밍)."
   [{:keys [cwd callback-fn] :as opts}]
-  (let [cmd    (build-command opts)
-        pb     (doto (ProcessBuilder. ^java.util.List cmd)
-                 (.redirectErrorStream false))
-        _      (when cwd (.directory pb (io/file cwd)))
-        proc   (.start pb)]
-    ;; stdin을 즉시 닫아야 CLI가 --print 모드로 동작 후 종료
+  (let [cmd  (build-command opts)
+        pb   (doto (ProcessBuilder. ^java.util.List cmd)
+               (.redirectErrorStream false))
+        _    (when cwd (.directory pb (io/file cwd)))
+        proc (.start pb)]
     (.close (.getOutputStream proc))
     (let [reader (BufferedReader. (InputStreamReader. (.getInputStream proc) "UTF-8"))]
       (try
         (loop [messages []]
           (if-let [line (.readLine reader)]
             (let [parsed (parse-stream-line line)]
-              (when (and parsed callback-fn)
-                (callback-fn parsed))
+              (when (and parsed callback-fn) (callback-fn parsed))
               (recur (if parsed (conj messages parsed) messages)))
-            (do
-              (.waitFor proc)
-              messages)))
+            (do (.waitFor proc) messages)))
         (finally
           (.close reader)
           (.destroy proc))))))
 
-(defn models
-  "사용 가능한 모델 목록을 반환."
-  []
-  default-models)
+(defn models [] default-models)
